@@ -1,0 +1,248 @@
+/* ============================================================
+   TravelMate 全局样式
+   组件专属样式一律写在各自的 <style scoped> 里,这里只放:
+   设计变量、reset、Element Plus 微调、Auth 背景、通用布局工具类。
+   ============================================================ */
+
+:root {
+  /* 品牌色:旅行感的深青 + 沙金 */
+  --tm-primary: #2f6f6b;
+  --tm-primary-dark: #245653;
+  --tm-primary-soft: #e6f1ef;
+  --tm-accent: #d9a441;
+
+  --tm-ink: #1f2d2b;
+  --tm-muted: #6b7c79;
+  --tm-border: #e2e8e6;
+  --tm-surface: #ffffff;
+  --tm-page-bg: #f5f8f7;
+  --tm-sidebar-bg: #10302d;
+  --tm-sidebar-ink: #cfe3e0;
+
+  --tm-radius: 12px;
+  --tm-radius-lg: 18px;
+  --tm-shadow-sm: 0 1px 2px rgba(16, 48, 45, 0.06);
+  --tm-shadow-md: 0 8px 24px rgba(16, 48, 45, 0.08);
+  --tm-shadow-lg: 0 20px 60px rgba(16, 48, 45, 0.18);
+
+  --tm-sidebar-width: 236px;
+  --tm-sidebar-collapsed-width: 72px;
+  --tm-topbar-height: 64px;
+
+  /* Element Plus 主色跟随品牌色 */
+  --el-color-primary: #2f6f6b;
+  --el-color-primary-dark-2: #245653;
+  --el-color-primary-light-3: #5b8f8b;
+  --el-color-primary-light-5: #87aeab;
+  --el-color-primary-light-7: #b4cdcb;
+  --el-color-primary-light-8: #cadcdb;
+  --el-color-primary-light-9: #e6f1ef;
+  --el-border-radius-base: 8px;
+  --el-font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--el-font-family);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--tm-ink);
+  background-color: var(--tm-page-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--tm-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--tm-primary-dark);
+}
+
+/* ---------- 滚动条 ---------- */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 48, 45, 0.18);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 48, 45, 0.3);
+}
+
+/* ---------- 通用布局工具 ---------- */
+
+.tm-center-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.tm-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tm-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tm-muted {
+  color: var(--tm-muted);
+}
+
+.tm-section-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tm-ink);
+}
+
+/* ============================================================
+   Auth(登录 / 注册):全屏旅游背景 + 居中卡片
+   ============================================================ */
+
+.tm-auth-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 16px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #0f3f4a 0%, #1c6b6b 38%, #4d9a8e 68%, #e8c98a 100%);
+}
+
+/* 远景山峦 */
+.tm-auth-shell::before,
+.tm-auth-shell::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  content: '';
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+.tm-auth-shell::before {
+  height: 46%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cpath fill='%230b2f36' fill-opacity='0.55' d='M0,192L80,181.3C160,171,320,149,480,160C640,171,800,213,960,213.3C1120,213,1280,171,1360,149.3L1440,128L1440,320L0,320Z'/%3E%3C/svg%3E");
+}
+
+.tm-auth-shell::after {
+  height: 30%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cpath fill='%23061f24' fill-opacity='0.75' d='M0,256L120,245.3C240,235,480,213,720,218.7C960,224,1200,256,1320,272L1440,288L1440,320L0,320Z'/%3E%3C/svg%3E");
+}
+
+.tm-auth-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px 28px;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: var(--tm-radius-lg);
+  box-shadow: var(--tm-shadow-lg);
+  backdrop-filter: blur(6px);
+}
+
+.tm-auth-brand {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--tm-primary-dark);
+}
+
+.tm-auth-subtitle {
+  margin: 0 0 24px;
+  font-size: 13px;
+  color: var(--tm-muted);
+}
+
+.tm-auth-footer {
+  margin-top: 18px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--tm-muted);
+}
+
+/* ============================================================
+   主站 Shell
+   ============================================================ */
+
+.tm-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--tm-page-bg);
+}
+
+.tm-shell-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  transition: padding-left 0.2s ease;
+}
+
+.tm-content {
+  flex: 1;
+  padding: 28px 32px 40px;
+}
+
+/* ---------- Element Plus 微调 ---------- */
+
+.el-button {
+  font-weight: 500;
+}
+
+.el-card {
+  border-radius: var(--tm-radius);
+  box-shadow: var(--tm-shadow-sm);
+}
+
+.el-dialog,
+.el-drawer {
+  --el-dialog-border-radius: var(--tm-radius-lg);
+}
+
+.el-message {
+  border-radius: 10px;
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 900px) {
+  .tm-content {
+    padding: 20px 16px 32px;
+  }
+
+  .tm-auth-card {
+    padding: 28px 22px 22px;
+  }
+}

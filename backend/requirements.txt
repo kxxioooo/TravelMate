@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pymysql
+pydantic-settings
+passlib[bcrypt]
+python-jose[cryptography]
+email-validator
+pytest
+httpx
+
+# passlib 1.7.4 读取 bcrypt.__about__,bcrypt>=4.1 已移除该属性会导致报错,因此锁定 4.0.1
+bcrypt==4.0.1
