@@ -40,6 +40,13 @@ class Settings(BaseSettings):
 
     frontend_origin: str = "http://localhost:5173"
 
+    # v0.2 第三方服务:高德(天气 / POI)+ 受限 DeepSeek(仅"城市代表性 10 种美食")
+    # 默认值一律是占位符:缺失或仍是 change_me 时业务层给出可控错误,绝不带着假 Key 发请求。
+    amap_api_key: str = "change_me"
+    deepseek_api_key: str = "change_me"
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+
 
 @lru_cache
 def get_settings() -> Settings:

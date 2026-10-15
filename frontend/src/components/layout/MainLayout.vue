@@ -20,7 +20,7 @@
         <TopCitySearch :selected-city="selectedCity" @city-selected="handleCitySelected" />
       </header>
 
-      <main class="tm-content">
+      <main class="tm-content" :class="{ 'tm-content--workspace': Boolean(selectedCity) }">
         <slot />
       </main>
     </div>
@@ -41,7 +41,12 @@ const emit = defineEmits(['city-selected', 'open-preferences', 'open-prompts', '
 
 const sidebarCollapsed = ref(false)
 
-/** 同步主内容区可用宽度:折叠后让出 236px -> 72px。 */
+/**
+ * 同步主内容区可用宽度:折叠后让出 236px -> 72px。
+ *
+ * 当已经选中城市时,主内容区切换成"可拖动双栏"布局:
+ * CityWorkspace 需要在固定高度里自行滚动,所以这里不再让整页滚动。
+ */
 function handleSidebarCollapse(collapsed) {
   sidebarCollapsed.value = Boolean(collapsed)
 }

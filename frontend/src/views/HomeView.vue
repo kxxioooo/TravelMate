@@ -1,22 +1,22 @@
 <template>
   <MainLayout
-    :selected-city="selectedCity"
+    :selected-city="cityStore.selectedCity"
     @city-selected="handleCitySelected"
     @open-preferences="handleOpenPreferences"
     @open-prompts="handleOpenPrompts"
     @open-settings="handleOpenSettings"
   >
-    <section class="tm-hero">
-      <h1 class="tm-hero-title">你好,{{ authStore.user?.username ?? '旅行者' }}</h1>
-
-      <p v-if="selectedCity" class="tm-hero-sub">
-        已选择:<strong>{{ selectedCity.city_name }} · {{ selectedCity.province }}</strong>
-        <span class="tm-muted">(城市详细信息将在 v0.2 提供)</span>
-      </p>
-      <p v-else class="tm-hero-sub tm-muted">在顶部搜索并选择一个城市,开始规划你的旅程。</p>
-    </section>
-
-    <AiPlaceholder ref="aiPlaceholderRef" />
+    <CityWorkspace
+      :city="cityStore.selectedCity"
+      :weather="cityStore.weather"
+      :clothing-advice="cityStore.clothingAdvice"
+      :weather-loading="cityStore.isWeatherLoading"
+      :username="authStore.user?.username ?? ''"
+    >
+      <template #ai>
+        <AiPlaceholder ref="aiPlaceholderRef" />
+      </template>
+    </CityWorkspace>
   </MainLayout>
 
   <!-- Drawer / Dialog:同一时刻只开一个,由 activePanel 决定 -->
@@ -38,28 +38,47 @@
 
 <script setup>
 import { ElMessage } from 'element-plus'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AiPlaceholder from '../components/home/AiPlaceholder.vue'
 import RecommendedPromptsPanel from '../components/home/RecommendedPromptsPanel.vue'
 import SettingsPanel from '../components/home/SettingsPanel.vue'
+import CityWorkspace from '../components/city/CityWorkspace.vue'
 import MainLayout from '../components/layout/MainLayout.vue'
+import { useAttractionStore } from '../stores/attractions'
 import { useAuthStore } from '../stores/auth'
+import { useCityStore } from '../stores/city'
+import { useFoodStore } from '../stores/food'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const cityStore = useCityStore()
+const attractionStore = useAttractionStore()
+const foodStore = useFoodStore()
 
-const selectedCity = ref(null)
 const activePanel = ref(null)
 const aiPlaceholderRef = ref(null)
 
-/** 记录当前城市。v0.1 不请求高德,只保留完整的 city 对象。 */
-function handleCitySelected(city) {
-  selectedCity.value = city
-  if (city) {
-    ElMessage.success(`已选择 ${city.city_name}`)
+/**
+ * 选中城市后的统一入口。
+ *
+ * - 城市上下文(浏览历史 + 天气)全部由 cityStore.openCity 负责;
+ * - 天气与默认 10 个景点并行获取(§3 用户流程);
+ * - 这里刻意不加载十大美食:默认 Tab 是景点,美食等用户第一次
+ *   切到"美食" Tab 再加载。
+ */
+async function handleCitySelected(city) {
+  if (!city?.city_name) {
+    return
   }
+
+  const cityTask = cityStore.openCity(city)
+  const attractionTask = attractionStore.loadDefaultAttractions(city)
+  foodStore.resetFoodState()
+
+  await Promise.all([cityTask, attractionTask])
+  ElMessage.success(`已选择 ${city.city_name}`)
 }
 
 /**
@@ -80,7 +99,7 @@ function handleOpenSettings() {
   activePanel.value = 'settings'
 }
 
-/** 把静态 Prompt 传给 AI Placeholder。v0.1 只填入,不发送。 */
+/** 把静态 Prompt 传给 AI Placeholder。v0.2 仍然只填入,不发送。 */
 function handlePromptSelected(prompt) {
   aiPlaceholderRef.value?.setDraftPrompt(prompt)
   closeActivePanel()
@@ -90,23 +109,25 @@ function handlePromptSelected(prompt) {
 function closeActivePanel() {
   activePanel.value = null
 }
+
+/**
+ * 退出登录时清空城市上下文。
+ *
+ * AppSidebar 只负责清 auth / preferences,城市相关状态在这里跟随
+ * 登录态一起清掉,避免下一个账号看到上一个账号的城市数据。
+ * 用 sync flush:退出后路由会立刻跳转,不能等下一次渲染。
+ */
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      return
+    }
+
+    cityStore.resetCityContext()
+    attractionStore.resetAttractions()
+    foodStore.resetFoodState()
+  },
+  { flush: 'sync' },
+)
 </script>
-
-<style scoped>
-.tm-hero {
-  margin-bottom: 24px;
-}
-
-.tm-hero-title {
-  margin: 0 0 8px;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--tm-primary-dark);
-}
-
-.tm-hero-sub {
-  margin: 0;
-  font-size: 14px;
-  color: var(--tm-ink);
-}
-</style>

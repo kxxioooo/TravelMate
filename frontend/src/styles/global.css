@@ -29,6 +29,9 @@
   --tm-sidebar-collapsed-width: 72px;
   --tm-topbar-height: 64px;
 
+  /* .tm-content 上下内边距合计(28 + 40),v0.2 双栏布局用它算高度 */
+  --tm-content-gutter-y: 68px;
+
   /* Element Plus 主色跟随品牌色 */
   --el-color-primary: #2f6f6b;
   --el-color-primary-dark-2: #245653;
@@ -242,7 +245,125 @@ a:hover {
     padding: 20px 16px 32px;
   }
 
+  :root {
+    --tm-content-gutter-y: 52px;
+  }
+
   .tm-auth-card {
     padding: 28px 22px 22px;
   }
 }
+
+/* ============================================================
+   v0.2:城市信息区 + AI 占位区的可拖动双栏
+   ============================================================ */
+
+/* 选中城市后主内容区不再整页滚动,交给左右两栏各自滚动 */
+.tm-content--workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+/*
+ * el-splitter 自带 height:100%,父级必须有"确定高度",
+ * 否则内部的 flex:1 区域在自动高度下拿不到可用空间。
+ */
+.tm-content--workspace .tm-splitter {
+  height: calc(100vh - var(--tm-topbar-height) - var(--tm-content-gutter-y));
+  min-height: 520px;
+}
+
+.tm-splitter {
+  border-radius: var(--tm-radius-lg);
+}
+
+/* 城市区 ≈ 80%,AI 区 ≈ 20%;min 值在组件里通过 :min 传入 */
+.tm-splitter-city,
+.tm-splitter-ai {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tm-splitter-city {
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+}
+
+.tm-splitter-ai {
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+
+/* 拖动条:默认太细,给一点品牌色提示 */
+.tm-splitter .el-splitter-bar__dragger-horizontal::before {
+  width: 3px;
+  background-color: var(--tm-primary-light-8);
+}
+
+.tm-splitter .el-splitter-bar__dragger-horizontal::after {
+  width: 3px;
+}
+
+/* ============================================================
+   v0.2:城市内容区 Tab
+   ============================================================ */
+
+.tm-city-tabs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tm-city-tabs > .el-tabs__header {
+  flex: none;
+  margin-bottom: 12px;
+}
+
+.tm-city-tabs > .el-tabs__content {
+  flex: 1;
+  min-height: 0;
+  padding-right: 4px;
+  overflow: auto;
+}
+
+.tm-city-tabs .el-tabs__item {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tm-tab-attractions,
+.tm-tab-food {
+  display: inline-block;
+  padding: 0 2px;
+}
+
+/* ============================================================
+   v0.2:城市结果区(Card / 列表 / 下拉候选)
+   ============================================================ */
+
+.tm-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.tm-food-grid {
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.tm-tab-toolbar .el-input__wrapper {
+  border-radius: 10px;
+}
+
+/* 顶部城市搜索下拉:最近搜索 / 本地匹配两种候选项 */
+.tm-suggestion-recent,
+.tm-suggestion-city {
+  width: 100%;
+  line-height: 1.5;
+}
+

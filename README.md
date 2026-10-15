@@ -1,9 +1,29 @@
-# TravelMate AI — v0.1
+# TravelMate AI — v0.2
 
-v0.1 只搭骨架:**账户系统 + 用户偏好 + 基础 Web Shell + 本地城市搜索 + MySQL 持久化**。
-明确不接高德、不接 DeepSeek、不做 Agent、不做 RAG —— 这些留给 v0.2 / v0.3 / v0.4 增量加入。
+**v0.1 骨架**:账户系统 + 用户偏好 + 基础 Web Shell + 本地城市搜索 + MySQL 持久化。
+**v0.2 城市旅游信息**:城市搜索历史 + 高德实时天气/穿衣建议 + 景点 + 美食 + 可拖动双栏布局。
 
-核心文件 **48 个**:根配置 2 + 前端 26 + 后端 20(空 `__init__.py` 不计入)。
+v0.2 仍**不做** AI Chat、Conversation、Agent Tool Calling、RAG —— 留给 v0.3 / v0.4。
+
+核心文件 **88 个**(v0.1 的 48 + v0.2 新增 40):根配置 2 + 前端 47 + 后端 39(空 `__init__.py`、lock 文件不计入)。
+
+---
+
+## v0.2 新增能力
+
+| 能力 | 实现要点 |
+|---|---|
+| 城市搜索历史 | `city_view_history` 表,`UNIQUE(user_id, adcode)` → 重复选同城只更新 `viewed_at`,不产生重复 |
+| Recent Searches | 搜索框聚焦且无关键词时,下拉显示最近 10 个城市的本地历史 |
+| 实时天气 + 穿衣建议 | 高德天气**请求两次**(`base` 拿实时、`all` 拿预报)后合并;穿衣建议按温度阈值 + 天气文本(含"雨"补雨具)在本地生成,不调用 DeepSeek |
+| 景点 Tab(默认) | 默认 10 个用高德**类别码 `types=110000`** 取(不能按关键词"景点",否则会混进写字楼);关键词搜索切到 `page_size=20` 并支持 Load More |
+| 景点详情 | 照片 / 地址 / 价格·门票 / 标签;`location` 后台保留但 UI 不展示经纬度 |
+| 美食 Tab(首次点击才加载) | DeepSeek 生成 10 种代表美食(JSON),再对每种查高德餐饮 POI 取 2 家真实餐厅;封面取真实 POI 照片 |
+| 美食搜索 | 输入"火锅"等关键词 → 切换为餐厅结果模式,支持 Load More |
+| 餐厅详情 | 人均 / 地址 / 评分 / 预订电话,缺失一律"暂无信息" |
+| 可拖动双栏 | `el-splitter`,默认约 80% 城市区 / 20% AI 区(AI 区 v0.2 仍是占位) |
+
+**两条硬约束**(§36/§37):第三方 API 没有的数据一律 `null` → 前端显示"暂无信息",**绝不让 LLM 编造餐厅价格/评分/地址/电话**;图片只用网络 URL,服务器不下载、不落盘。
 
 ---
 
@@ -108,6 +128,8 @@ python -m pytest tests -q
 
 11 个测试(认证 6 + 偏好 5)全部跑在内存 SQLite 上,不需要 MySQL。
 
+v0.2 后共 **33 个测试**(v0.1 的 11 + 城市历史 4 + 天气 4 + 景点 6 + 美食 8)。高德与 DeepSeek 全部 mock,不消耗真实 API quota。
+
 ---
 
 ## 5. 认证方案
@@ -131,11 +153,22 @@ Cookie: HttpOnly=true, SameSite=Lax, Secure=(APP_ENV=="production")
 | GET | `/preferences/me` | 是 | 获取偏好(没保存过返回空结构) |
 | PUT | `/preferences/me` | 是 | 保存/修改偏好,并置 onboarding_completed |
 | POST | `/preferences/skip` | 是 | 跳过 Onboarding(不伪造偏好) |
+| GET | `/cities/history` | 是 | 最近搜索的城市(最多 10,倒序) |
+| POST | `/cities/history` | 是 | 记录一次城市浏览(同城 upsert) |
+| GET | `/weather?adcode=` | 是 | 实时天气 + 预报合并 + 穿衣建议 |
+| GET | `/attractions` | 是 | 景点列表(`city_name`/`adcode`/`keyword`/`page`/`page_size`) |
+| GET | `/attractions/{poi_id}` | 是 | 景点详情(含 `location`,UI 不展示) |
+| GET | `/food/featured` | 是 | 10 种代表美食 + 每种最多 2 家真实餐厅 |
+| GET | `/food/restaurants` | 是 | 按关键词搜索餐厅(分页) |
+| GET | `/food/restaurants/{poi_id}` | 是 | 餐厅详情(人均/地址/评分/电话) |
 | GET | `/health` | 否 | 健康检查 |
+
+外部 API 备注:高德个人 Key 有 **QPS 限制**,连续快速请求会返回 `status=0`(看起来像"无数据");
+`amap_client` 已内置退避重试,`food/featured` 的 10 路查询用 `Semaphore(3)` + 间隔控流。
 
 ---
 
-## 7. 分层约定(为 v0.2+ 预留)
+## 7. 分层约定
 
 ```
 frontend/src  router / api / stores / views / components / constants / utils / data / styles
@@ -146,13 +179,19 @@ backend/app   api(router, deps, routes) / services / schemas / models / db / cor
 - 偏好选项只在 `constants/preferences.js` 定义一次;
 - 城市索引只在 `data/cities.json`,搜索算法只在 `utils/citySearch.js`;
 - `/onboarding` 同时是"首次填写"和"已登录用户修改偏好"的唯一入口
-  (Sidebar 的 Preferences 指向它),避免两套偏好表单走偏。
+  (Sidebar 的 Preferences 指向它),避免两套偏好表单走偏;
+- 城市上下文只有 `stores/city.js` 的 `openCity()` 一个入口(内部并行记录历史 + 拉天气),
+  HomeView 不自己拼 API;
+- 缺失值统一走 `utils/display.js`,不在各组件里各写一套兜底。
+
+**为 v0.3 做的架构准备**:v0.2 已形成四个可复用 Service ——
+`preference_service` / `weather_service` / `attraction_service` / `food_service`。
+v0.3 的 Agent Tool **必须调用这些现成 Service,不允许重写一套查询逻辑**。
 
 后续版本增量落点:
 
 ```
-v0.2  city / weather / attractions / food  → 前端加 api+stores+components,后端加 routes+services
-v0.3  conversation / chat / agent          → AiPlaceholder 升级为真正的 ChatPanel
+v0.3  conversation / chat / agent  → AiPlaceholder 升级为真正的 ChatPanel,Agent Tool 复用 v0.2 的 Service
 v0.4  retrieval / rag
 ```
 
@@ -161,5 +200,8 @@ v0.4  retrieval / rag
 ## 8. 安全
 
 - 密码只存 bcrypt 哈希(`$2b$12$...`);
-- `JWT_SECRET` 与 MySQL 密码只存在于 `.env`,`.env` 已被 `.gitignore` 忽略;
-- 数据库异常统一降级为 `500 {"detail":"服务器暂时不可用"}`,不向前端暴露 traceback / SQLAlchemyError。
+- `JWT_SECRET`、MySQL 密码、`AMAP_API_KEY`、`DEEPSEEK_API_KEY` 只存在于 `.env`,
+  `.env` 已被 `.gitignore` 忽略;`.env.example` 里全是 `change_me` 占位符;
+- **前端绝不持有任何第三方 Key**,高德与 DeepSeek 只由后端调用;
+- 数据库异常统一降级为 `500 {"detail":"服务器暂时不可用"}`,外部 API 失败降级为 `502` + 中文提示,
+  不向前端暴露 traceback / SQLAlchemyError / Key / 完整 URL。
