@@ -6,7 +6,18 @@
     @open-prompts="handleOpenPrompts"
     @open-settings="handleOpenSettings"
   >
+    <!--
+      §3.1 还没搜索 / 选中城市:真实 ChatPanel 直接占主页主要区域。
+      注意:这里与下面的城市布局是 v-if 切换,不是常驻占位 —— ChatPanel 会被
+      重新挂载,所以 draft / messages / activities 全部放在 store 里。
+    -->
+    <div v-if="!cityStore.selectedCity" class="tm-home-chat">
+      <ChatPanel ref="chatPanelRef" />
+    </div>
+
+    <!-- §3.2 选中城市:保留 v0.2 的 80/20 可拖动 Splitter,右侧换成真实 ChatPanel -->
     <CityWorkspace
+      v-else
       :city="cityStore.selectedCity"
       :weather="cityStore.weather"
       :clothing-advice="cityStore.clothingAdvice"
@@ -14,7 +25,7 @@
       :username="authStore.user?.username ?? ''"
     >
       <template #ai>
-        <AiPlaceholder ref="aiPlaceholderRef" />
+        <ChatPanel ref="chatPanelRef" />
       </template>
     </CityWorkspace>
   </MainLayout>
@@ -41,14 +52,16 @@ import { ElMessage } from 'element-plus'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import AiPlaceholder from '../components/home/AiPlaceholder.vue'
+import ChatPanel from '../components/ai/ChatPanel.vue'
+import CityWorkspace from '../components/city/CityWorkspace.vue'
 import RecommendedPromptsPanel from '../components/home/RecommendedPromptsPanel.vue'
 import SettingsPanel from '../components/home/SettingsPanel.vue'
-import CityWorkspace from '../components/city/CityWorkspace.vue'
 import MainLayout from '../components/layout/MainLayout.vue'
 import { useAttractionStore } from '../stores/attractions'
 import { useAuthStore } from '../stores/auth'
+import { useChatStore } from '../stores/chat'
 import { useCityStore } from '../stores/city'
+import { useConversationStore } from '../stores/conversations'
 import { useFoodStore } from '../stores/food'
 
 const router = useRouter()
@@ -56,9 +69,12 @@ const authStore = useAuthStore()
 const cityStore = useCityStore()
 const attractionStore = useAttractionStore()
 const foodStore = useFoodStore()
+const conversationStore = useConversationStore()
+const chatStore = useChatStore()
 
 const activePanel = ref(null)
-const aiPlaceholderRef = ref(null)
+/** 两种布局下只有一侧处于挂载状态,ref 始终指向当前真实存在的 ChatPanel。 */
+const chatPanelRef = ref(null)
 
 /**
  * 选中城市后的统一入口。
@@ -66,7 +82,8 @@ const aiPlaceholderRef = ref(null)
  * - 城市上下文(浏览历史 + 天气)全部由 cityStore.openCity 负责;
  * - 天气与默认 10 个景点并行获取(§3 用户流程);
  * - 这里刻意不加载十大美食:默认 Tab 是景点,美食等用户第一次
- *   切到"美食" Tab 再加载。
+ *   切到"美食" Tab 再加载;
+ * - §40:这里只动 cityStore,绝不触碰 Conversation 的绑定城市。
  */
 async function handleCitySelected(city) {
   if (!city?.city_name) {
@@ -99,9 +116,19 @@ function handleOpenSettings() {
   activePanel.value = 'settings'
 }
 
-/** 把静态 Prompt 传给 AI Placeholder。v0.2 仍然只填入,不发送。 */
+/**
+ * §9 / §39 把静态 Prompt 交给真实 ChatPanel:只填入 ChatInput,不自动发送。
+ *
+ * 主路径是 ChatPanel.applyRecommendedPrompt();它万一还没挂载,就直接写
+ * store 的 draftPrompt —— ChatPanel 挂载时会读一次,效果完全一致。
+ */
 function handlePromptSelected(prompt) {
-  aiPlaceholderRef.value?.setDraftPrompt(prompt)
+  if (chatPanelRef.value) {
+    chatPanelRef.value.applyRecommendedPrompt(prompt)
+  } else {
+    chatStore.setDraftPrompt(prompt)
+  }
+
   closeActivePanel()
 }
 
@@ -111,10 +138,10 @@ function closeActivePanel() {
 }
 
 /**
- * 退出登录时清空城市上下文。
+ * 退出登录时清空页面上下文与全部会话状态。
  *
- * AppSidebar 只负责清 auth / preferences,城市相关状态在这里跟随
- * 登录态一起清掉,避免下一个账号看到上一个账号的城市数据。
+ * AppSidebar 只负责清 auth / preferences,城市与会话相关状态在这里跟随
+ * 登录态一起清掉,避免下一个账号看到上一个账号的城市 / 会话(§18.7 / §24.6)。
  * 用 sync flush:退出后路由会立刻跳转,不能等下一次渲染。
  */
 watch(
@@ -127,7 +154,22 @@ watch(
     cityStore.resetCityContext()
     attractionStore.resetAttractions()
     foodStore.resetFoodState()
+    conversationStore.resetConversations()
+    chatStore.resetChat()
   },
   { flush: 'sync' },
 )
 </script>
+
+<style scoped>
+/*
+ * 未选城市时 ChatPanel 撑满主内容区(不是 v0.2 的 20% 侧栏)。
+ * 高度算法与 .tm-content--workspace .tm-splitter 保持一致。
+ */
+.tm-home-chat {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--tm-topbar-height) - var(--tm-content-gutter-y));
+  min-height: 520px;
+}
+</style>

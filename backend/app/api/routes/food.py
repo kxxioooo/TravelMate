@@ -15,7 +15,7 @@ from app.models.user import User
 from app.schemas.food import FeaturedFoodResponse, PagedRestaurantResponse, RestaurantDetail
 from app.services import food_service
 from app.services.amap_client import AmapError, AmapNotFoundError
-from app.services.deepseek_food_client import DeepSeekError
+from app.services.deepseek_client import DeepSeekError
 
 router = APIRouter(prefix="/food", tags=["food"])
 

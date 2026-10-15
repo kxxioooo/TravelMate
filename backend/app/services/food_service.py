@@ -6,6 +6,9 @@
 - 单个美食查不到餐厅只让那一项 representative_restaurants = [],不影响其它美食;
 - 封面图只取代表餐厅的真实 POI 照片,拿不到就是 None(§37),不调 AI 生图;
 - 价格 / 地址 / 评分 / 电话全部来自高德,缺失一律 None,不编造(§36)。
+
+v0.3 变更(§9):DeepSeek 调用从专用 `deepseek_food_client` 换成通用
+`deepseek_client.generate_json()`;对外行为与函数数量(8 个)完全不变。
 """
 
 import asyncio
@@ -21,7 +24,8 @@ from app.schemas.food import (
     RestaurantDetail,
     RestaurantSummary,
 )
-from app.services import amap_client, deepseek_food_client
+from app.services import amap_client, deepseek_client
+from app.services.deepseek_client import DeepSeekDataError
 
 #: 并发上限:实测这把 Key 在 3 个并发附近开始限流,所以取 3
 MAX_CONCURRENT_AMAP_REQUESTS = 3
@@ -35,6 +39,29 @@ REPRESENTATIVE_SEARCH_SIZE = 5
 
 DEFAULT_RESTAURANT_PAGE_SIZE = 20
 MAX_RESTAURANT_PAGE_SIZE = 20
+
+#: 目标美食数量
+FOOD_TARGET_COUNT = 10
+
+#: 受限 DeepSeek Prompt:只允许返回美食 name + description,
+#: 且因为 response_format=json_object 只接受 JSON 对象,必须用 {"foods": [...]} 包装。
+FOOD_SYSTEM_PROMPT = "你是一位中国地方美食专家。你只输出 JSON,不输出任何解释性文字。"
+
+FOOD_USER_PROMPT_TEMPLATE = """请列出「{city}」最有代表性的 {count} 种当地美食。
+
+只输出一个 JSON 对象,格式必须严格如下:
+{{"foods": [{{"name": "美食名称", "description": "1~2 句简介"}}]}}
+
+硬性要求:
+1. foods 数组必须恰好 {count} 项,不多不少;
+2. name 只能是美食名称本身(如"麻婆豆腐"),不要带城市名、不要带任何修饰;
+3. description 用 1~2 句中文说明这道美食的特点,不要写地址、不要写餐厅名;
+4. 绝对禁止输出任何餐厅的地址、电话、人均价格、评分、营业时间;
+5. 绝对禁止编造具体餐厅信息,餐厅信息由其它系统查询;
+6. 不要输出 Markdown 代码块,不要输出 JSON 以外的任何内容。"""
+
+PARSE_ERROR_MESSAGE = "美食数据解析失败,请稍后重试"
+EMPTY_ERROR_MESSAGE = "美食数据为空,请稍后重试"
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +152,45 @@ def _has_more(page: int, page_size: int, total: Optional[int], item_count: int) 
     return item_count >= page_size
 
 
+def _extract_food_items(data: Any) -> list[Any]:
+    """容忍三种形态:裸数组 / {"foods": [...]} / 其它单列表字段(v0.2 容错逻辑保留)。"""
+    if isinstance(data, (list, tuple)):
+        return list(data)
+    if isinstance(data, Mapping):
+        for key in ("foods", "items", "data", "result", "list"):
+            value = data.get(key)
+            if isinstance(value, (list, tuple)):
+                return list(value)
+        list_values = [value for value in data.values() if isinstance(value, (list, tuple))]
+        if len(list_values) == 1:
+            return list(list_values[0])
+    raise DeepSeekDataError(PARSE_ERROR_MESSAGE)
+
+
+def _validate_food_items(items: Any) -> list[dict[str, str]]:
+    """校验并清洗:必须是 list、name / description 非空、按 name 去重,最多取 10 个。"""
+    if not isinstance(items, (list, tuple)):
+        raise DeepSeekDataError(PARSE_ERROR_MESSAGE)
+
+    validated: list[dict[str, str]] = []
+    seen_names: set[str] = set()
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        name = _clean_str(item.get("name"))
+        description = _clean_str(item.get("description"))
+        if not name or not description or name in seen_names:
+            continue
+        seen_names.add(name)
+        validated.append({"name": name, "description": description})
+        if len(validated) >= FOOD_TARGET_COUNT:
+            break
+
+    if not validated:
+        raise DeepSeekDataError(EMPTY_ERROR_MESSAGE)
+    return validated
+
+
 def _resolve_city(city_name: Optional[str], adcode: Optional[str]) -> str:
     """高德 city 参数既能收城市名也能收 adcode,两者都给时优先城市名。"""
     return _clean_str(city_name) or _clean_str(adcode) or ""
@@ -205,7 +271,14 @@ async def get_featured_foods(
     if not city:
         raise ValueError("缺少城市参数")
 
-    foods = await deepseek_food_client.generate_representative_foods(city)
+    foods = _validate_food_items(
+        _extract_food_items(
+            await deepseek_client.generate_json(
+                FOOD_SYSTEM_PROMPT,
+                FOOD_USER_PROMPT_TEMPLATE.format(city=city, count=FOOD_TARGET_COUNT),
+            )
+        )
+    )
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_AMAP_REQUESTS)
 
     async def _load_one(food: Mapping[str, Any]) -> FeaturedFoodItem:

@@ -1,11 +1,35 @@
-# TravelMate AI — v0.2
+# TravelMate AI — v0.3
 
 **v0.1 骨架**:账户系统 + 用户偏好 + 基础 Web Shell + 本地城市搜索 + MySQL 持久化。
 **v0.2 城市旅游信息**:城市搜索历史 + 高德实时天气/穿衣建议 + 景点 + 美食 + 可拖动双栏布局。
+**v0.3 完整 AI Travel Agent**:DeepSeek Chat + 多 Conversation + 多城市 + 会话隔离 + Tool Calling + Agent Activity。
 
-v0.2 仍**不做** AI Chat、Conversation、Agent Tool Calling、RAG —— 留给 v0.3 / v0.4。
+v0.3 仍**不做** LangChain / Milvus / RAG —— 留给 v0.4。
 
-核心文件 **88 个**(v0.1 的 48 + v0.2 新增 40):根配置 2 + 前端 47 + 后端 39(空 `__init__.py`、lock 文件不计入)。
+核心文件 **114 个**(v0.2 的 88 + v0.3 新增 28 − 删除 2):根配置 2 + 前端 59 + 后端 53
+(空 `__init__.py`、lock 文件不计入)。
+
+---
+
+## v0.3 新增能力
+
+| 能力 | 实现要点 |
+|---|---|
+| 真实 AI Chat | `ChatPanel` 取代 `AiPlaceholder`;**未选城市时 Chat 占主页主要区域**,选中城市后才切到 80/20 Splitter |
+| 多 Conversation | 数量无业务限制;数据库 `conversations` + `conversation_cities`(0 / 1 / 多城市均可),可随时改当前会话城市 |
+| Conversation Drawer | **只存在于 AI 区内部**且默认隐藏;网站 Sidebar **始终不出现**对话历史 |
+| 会话记忆规则 | Preferences **跨会话共享**(通过 Tool 读取);Message History **严格按 `conversation_id` 隔离** |
+| Agent Tool Calling | 固定 4 个工具:`get_user_preferences` / `get_weather` / `search_attractions` / `search_food`,**全部复用 v0.2 的 service,不重写业务逻辑** |
+| 工具城市上下文 | 工具只在**当前 Conversation 的 cities** 里找城市;找不到返回受控提示,绝不偷偷改会话城市 |
+| Agent Activity | 只显示**实际执行过**的工具(✓/●/!),不显示 Chain-of-Thought,不伪造未发生的调用 |
+| 消息持久化 | 数据库只存最终 `user` / `assistant`;Agent 内部的 tool-call / tool 消息**只在单次请求内传递,不落库** |
+| Recommended Prompts | 点击后填入 ChatInput,**不自动发送**;没有 active 会话时首次发送会自动创建一个 `cities=[]` 的会话 |
+
+**Agent 行为红线**(§43):`user_id` 只能来自服务端,模型的工具 Schema 里没有它;dispatcher 白名单派发,禁止 `eval`;
+工具没返回的价格/评分/地址/电话一律"暂无信息",**绝不让模型编造**;整体失败时**不写虚假的 assistant 成功消息**。
+
+> 提示词实测要点:系统提示词里明确"具体城市的天气/景点/餐厅事实必须先调工具"后,
+> 事实类问题 4/4 触发工具、通用常识 2/2 不触发工具、长会话里再问事实问题也会重新调工具。
 
 ---
 
@@ -21,9 +45,13 @@ v0.2 仍**不做** AI Chat、Conversation、Agent Tool Calling、RAG —— 留�
 | 美食 Tab(首次点击才加载) | DeepSeek 生成 10 种代表美食(JSON),再对每种查高德餐饮 POI 取 2 家真实餐厅;封面取真实 POI 照片 |
 | 美食搜索 | 输入"火锅"等关键词 → 切换为餐厅结果模式,支持 Load More |
 | 餐厅详情 | 人均 / 地址 / 评分 / 预订电话,缺失一律"暂无信息" |
-| 可拖动双栏 | `el-splitter`,默认约 80% 城市区 / 20% AI 区(AI 区 v0.2 仍是占位) |
+| 可拖动双栏 | `el-splitter`,默认约 80% 城市区 / 20% AI 区 |
 
 **两条硬约束**(§36/§37):第三方 API 没有的数据一律 `null` → 前端显示"暂无信息",**绝不让 LLM 编造餐厅价格/评分/地址/电话**;图片只用网络 URL,服务器不下载、不落盘。
+
+> 前端超时注意:`/food/featured`(DeepSeek + 每种美食一次高德)与 `/conversations/{id}/messages`(最多 5 轮 Tool Loop)
+> 实测分别可达 20 秒与 33 秒,远超 `http.js` 默认的 15 秒,因此这两个请求单独把 axios 超时放宽到 90s / 120s。
+> 否则表现为"页面加载不出来,但后端日志里根本没有请求"。
 
 ---
 
@@ -128,7 +156,7 @@ python -m pytest tests -q
 
 11 个测试(认证 6 + 偏好 5)全部跑在内存 SQLite 上,不需要 MySQL。
 
-v0.2 后共 **33 个测试**(v0.1 的 11 + 城市历史 4 + 天气 4 + 景点 6 + 美食 8)。高德与 DeepSeek 全部 mock,不消耗真实 API quota。
+v0.3 后共 **54 个测试**(v0.2 的 33 + Conversation 7 + Chat 6 + Agent Tool 8)。DeepSeek 与高德全部 mock,不消耗真实 API quota。
 
 ---
 
@@ -161,6 +189,12 @@ Cookie: HttpOnly=true, SameSite=Lax, Secure=(APP_ENV=="production")
 | GET | `/food/featured` | 是 | 10 种代表美食 + 每种最多 2 家真实餐厅 |
 | GET | `/food/restaurants` | 是 | 按关键词搜索餐厅(分页) |
 | GET | `/food/restaurants/{poi_id}` | 是 | 餐厅详情(人均/地址/评分/电话) |
+| GET | `/conversations` | 是 | 当前用户的会话列表(updated_at DESC) |
+| POST | `/conversations` | 是 | 新建会话,body `{"cities":[...]}`,允许空数组 |
+| GET | `/conversations/{id}` | 是 | 会话详情(非本人 → 404) |
+| PUT | `/conversations/{id}/cities` | 是 | 整组替换会话城市(按 adcode 去重) |
+| GET | `/conversations/{id}/messages` | 是 | 会话历史消息(仅 user/assistant) |
+| POST | `/conversations/{id}/messages` | 是 | 发消息 → `{user_message, assistant_message, activities[]}` |
 | GET | `/health` | 否 | 健康检查 |
 
 外部 API 备注:高德个人 Key 有 **QPS 限制**,连续快速请求会返回 `status=0`(看起来像"无数据");
@@ -184,15 +218,14 @@ backend/app   api(router, deps, routes) / services / schemas / models / db / cor
   HomeView 不自己拼 API;
 - 缺失值统一走 `utils/display.js`,不在各组件里各写一套兜底。
 
-**为 v0.3 做的架构准备**:v0.2 已形成四个可复用 Service ——
-`preference_service` / `weather_service` / `attraction_service` / `food_service`。
-v0.3 的 Agent Tool **必须调用这些现成 Service,不允许重写一套查询逻辑**。
+**为 v0.4 做的架构准备**:v0.3 的 Agent **不能推翻**,只能扩展 ——
+新增 Retrieval Tool / RetrievalService 挂到 AgentService 下(现有 4 个 Tool 不动),
+Conversation 主结构与数据库不需要重写;前端主要增加"知识来源 / 引用展示"。
 
 后续版本增量落点:
 
 ```
-v0.3  conversation / chat / agent  → AiPlaceholder 升级为真正的 ChatPanel,Agent Tool 复用 v0.2 的 Service
-v0.4  retrieval / rag
+v0.4  retrieval / rag  → LangChain + Milvus Lite,作为第 5 个 Tool 接入现有 AgentService
 ```
 
 ---

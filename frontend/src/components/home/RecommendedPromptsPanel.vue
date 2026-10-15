@@ -1,7 +1,7 @@
 <template>
   <div class="tm-prompts">
     <p class="tm-prompts-hint">
-      v0.1 只提供静态示例:点击后会填入下方 AI 输入框,不会发送任何网络请求。
+      点击后会把问题填入 AI 区输入框(不会自动发送),你可以改完再发。
     </p>
 
     <ul class="tm-prompts-list">
@@ -22,7 +22,7 @@
 <script setup>
 import { MagicStick } from '@element-plus/icons-vue'
 
-/** v0.1 静态示例;v0.3 保留此组件但点击后直接进入真实 Chat 输入。 */
+/** v0.1 静态示例;v0.3 保留此组件(函数仍为 2 个),点击后进入真实 Chat 输入。 */
 const PROMPTS = [
   '帮我规划成都三日游',
   '推荐适合自然风景爱好者的城市',
@@ -32,7 +32,7 @@ const PROMPTS = [
 
 const emit = defineEmits(['prompt-selected', 'close'])
 
-/** 点击推荐问题,把文本抛给父组件填入 AI 输入框。 */
+/** 点击推荐问题,把文本抛给父组件(HomeView → ChatPanel.applyRecommendedPrompt)。 */
 function handlePromptClick(prompt) {
   emit('prompt-selected', prompt)
 }

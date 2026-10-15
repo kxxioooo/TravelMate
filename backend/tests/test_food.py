@@ -2,14 +2,20 @@
 
 DeepSeek 与高德调用全部 mock,测试不消耗真实 quota。
 限流保护(重试 + Semaphore)也在 test_food_search_restaurants 里验证。
+
+v0.3 变更:DeepSeek 调用统一走 `deepseek_client.generate_json()`
+(专用 deepseek_food_client 已删除),这里同步换成 mock 通用 client。
 """
 
 import asyncio
 import inspect
+import json
 from types import SimpleNamespace
 
+import pytest
+
 from app.schemas.food import RestaurantDetail
-from app.services import amap_client, deepseek_food_client, food_service
+from app.services import amap_client, deepseek_client, food_service
 
 API = "/api/v1"
 
@@ -42,13 +48,37 @@ def _fake_foods(count=10):
 
 
 def _patch_deepseek(monkeypatch, foods=None):
-    async def fake_generate(city_name):
-        assert city_name
-        return [dict(food) for food in (foods if foods is not None else _fake_foods())]
+    """mock 通用 DeepSeek client:generate_json 返回 {"foods": [...]} 对象包装。"""
 
-    monkeypatch.setattr(deepseek_food_client, "generate_representative_foods", fake_generate)
+    async def fake_generate_json(system_prompt, user_prompt):
+        assert system_prompt and user_prompt
+        return {"foods": [dict(food) for food in (foods if foods is not None else _fake_foods())]}
+
+    monkeypatch.setattr(deepseek_client, "generate_json", fake_generate_json)
     # 测试里不需要真实等待,避免拖慢用例
     monkeypatch.setattr(food_service, "FOOD_REQUEST_INTERVAL_SECONDS", 0)
+
+
+def _patch_deepseek_raw_content(monkeypatch, content, response_format_seen=None):
+    """mock chat_completion,让 generate_json 真的去解析模型文本。"""
+
+    async def fake_chat_completion(messages, tools=None, response_format=None, temperature=None):
+        assert tools is None  # 美食生成不是 Tool Calling
+        assert response_format == {"type": "json_object"}
+        if response_format_seen is not None:
+            response_format_seen.append(response_format)
+        return {"choices": [{"message": {"role": "assistant", "content": content}}]}
+
+    monkeypatch.setattr(deepseek_client, "chat_completion", fake_chat_completion)
+    monkeypatch.setattr(
+        deepseek_client,
+        "get_settings",
+        lambda: SimpleNamespace(
+            deepseek_api_key="test_key",
+            deepseek_base_url="https://api.deepseek.com",
+            deepseek_model="deepseek-chat",
+        ),
+    )
 
 
 def _patch_restaurant_search(monkeypatch, handler):
@@ -323,49 +353,57 @@ def test_deepseek_food_json_parse_failure(monkeypatch, client_fixture, user_payl
     wrapped = '{"foods": [{"name": "钟水饺", "description": "皮薄馅嫩。"}]}'
     fenced = '```json\n[{"name": "龙抄手", "description": "汤鲜味美。"}]\n```'
 
-    assert deepseek_food_client.parse_food_json(bare)[0]["name"] == "麻婆豆腐"
-    assert deepseek_food_client.parse_food_json(wrapped) == [
-        {"name": "钟水饺", "description": "皮薄馅嫩。"}
-    ]
-    assert deepseek_food_client.parse_food_json(fenced) == [
-        {"name": "龙抄手", "description": "汤鲜味美。"}
-    ]
+    def handler(**kwargs):
+        return {"status": "1", "count": "5", "pois": [_restaurant(f"R-{kwargs['keyword']}")]}
 
-    # 去重 + 丢弃脏数据
-    validated = deepseek_food_client.validate_food_items(
-        [
-            {"name": "冒菜", "description": "一人食火锅。"},
-            {"name": "冒菜", "description": "重复项。"},
-            {"name": "", "description": "没有名字。"},
-            "不是对象",
-        ]
+    _register(client_fixture, user_payload_fixture)
+
+    # 通用 client 的容错解析:三种形态都要还原成同一份美食列表
+    for content, expected_name in ((bare, "麻婆豆腐"), (wrapped, "钟水饺"), (fenced, "龙抄手")):
+        _patch_deepseek_raw_content(monkeypatch, content)
+        payload = asyncio.run(deepseek_client.generate_json("system", "user"))
+        assert food_service._extract_food_items(payload)[0]["name"] == expected_name
+
+    # 端到端:对象包装 + 脏数据(重复 / 缺字段 / 非对象)都能被清洗成 1 条
+    dirty = json.dumps(
+        {
+            "foods": [
+                {"name": "冒菜", "description": "一人食火锅。"},
+                {"name": "冒菜", "description": "重复项。"},
+                {"name": "", "description": "没有名字。"},
+                "不是对象",
+            ]
+        },
+        ensure_ascii=False,
     )
-    assert validated == [{"name": "冒菜", "description": "一人食火锅。"}]
+    _patch_deepseek_raw_content(monkeypatch, dirty)
+    _patch_restaurant_search(monkeypatch, handler)
+    items = client_fixture.get(f"{API}/food/featured", params={"city_name": "成都"}).json()["items"]
+    assert [item["name"] for item in items] == ["冒菜"]
+    assert items[0]["description"] == "一人食火锅。"
 
-    # 解析失败 -> 可重试业务异常
-    for bad in ["这不是 JSON", "", "```json\n{不是合法 json}\n```", "[]"]:
-        try:
-            items = deepseek_food_client.parse_food_json(bad)
-        except deepseek_food_client.FoodDataError as exc:
-            assert exc.retryable is True
-            continue
-        # 只有 "[]" 是合法 JSON,但其中没有有效美食,校验阶段必须报错
-        assert bad == "[]"
-        try:
-            deepseek_food_client.validate_food_items(items)
-        except deepseek_food_client.FoodDataError as exc:
-            assert exc.retryable is True
+    # 解析失败 -> 可重试业务异常(绝不是 500)
+    for bad in ["这不是 JSON", "", "```json\n{不是合法 json}\n```"]:
+        _patch_deepseek_raw_content(monkeypatch, bad)
+        with pytest.raises(deepseek_client.DeepSeekDataError) as excinfo:
+            asyncio.run(deepseek_client.generate_json("system", "user"))
+        assert excinfo.value.retryable is True
+
+    # 合法 JSON 但没有有效美食 -> 同样是可重试业务异常
+    _patch_deepseek_raw_content(monkeypatch, "[]")
+    with pytest.raises(deepseek_client.DeepSeekDataError) as excinfo:
+        asyncio.run(food_service.get_featured_foods(city_name="成都"))
+    assert excinfo.value.retryable is True
 
     # 接口层:DeepSeek 失败 -> 502 + 中文人话,不泄露内部细节
-    async def broken_generate(city_name):
-        raise deepseek_food_client.FoodDataError(deepseek_food_client.PARSE_ERROR_MESSAGE)
+    async def broken_generate_json(system_prompt, user_prompt):
+        raise deepseek_client.DeepSeekDataError(deepseek_client.PARSE_ERROR_MESSAGE)
 
-    monkeypatch.setattr(deepseek_food_client, "generate_representative_foods", broken_generate)
-    _register(client_fixture, user_payload_fixture)
+    monkeypatch.setattr(deepseek_client, "generate_json", broken_generate_json)
 
     response = client_fixture.get(f"{API}/food/featured", params={"city_name": "成都"})
 
     assert response.status_code == 502
     assert response.json()["detail"] == "美食推荐服务暂时不可用"
-    assert "FoodDataError" not in response.text
+    assert "DeepSeek" not in response.text
     assert "api.deepseek.com" not in response.text

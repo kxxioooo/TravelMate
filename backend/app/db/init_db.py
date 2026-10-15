@@ -8,7 +8,14 @@ v0.1 只做 Base.metadata.create_all(),等表结构开始演进再引入 Alembic
 
 from app.db.base import Base
 from app.db.session import engine
-from app.models import city_history, preference, user  # noqa: F401  导入即注册到 Base.metadata
+from app.models import (  # noqa: F401  导入即注册到 Base.metadata
+    city_history,
+    conversation,
+    conversation_city,
+    message,
+    preference,
+    user,
+)
 
 
 def init_db() -> None:

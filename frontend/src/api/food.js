@@ -19,6 +19,10 @@ function buildParams(params) {
  *
  * 后端 = 受限 DeepSeek 生成美食名称 + 高德真实餐厅 POI,
  * 每种美食最多 2 家代表餐厅。
+ *
+ * 注意:这一路要调用一次 DeepSeek + 对每种美食查一次高德(受 QPS 限流影响),
+ * 实测耗时可达 20 秒以上,远超 http.js 默认的 15 秒。必须单独放宽超时,
+ * 否则请求会被前端自己掐断,页面表现为"美食加载不出来"而后端日志里根本没有请求。
  */
 export function getFeaturedFoods(city) {
   return http
@@ -27,6 +31,7 @@ export function getFeaturedFoods(city) {
         city_name: city?.city_name ?? '',
         adcode: city?.adcode ?? '',
       }),
+      timeout: 90000,
     })
     .then((response) => response.data)
 }
