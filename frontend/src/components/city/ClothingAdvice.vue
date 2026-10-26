@@ -1,24 +1,43 @@
 <template>
   <p class="tm-clothing-advice">
     <el-icon class="tm-clothing-advice-icon"><Sunny /></el-icon>
-    <span class="tm-clothing-advice-label">穿衣建议:</span>
-    <span class="tm-clothing-advice-text">{{ displayOrUnknown(text) }}</span>
+    <span class="tm-clothing-advice-label">{{ t('city.clothing_advice') }}</span>
+    <span class="tm-clothing-advice-text">{{ adviceText }}</span>
   </p>
 </template>
 
 <script setup>
 import { Sunny } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import { resolveClothingLabels } from '../../constants/localizedTerms'
 import { displayOrUnknown } from '../../utils/display'
 
 /**
  * 穿衣建议,纯展示。
  *
- * 只接收后端归一化后的建议文本;天气接口不可用时后端会给空值,
- * 这里统一显示"暂无信息"。
+ * v0.3.1:优先用后端的 `clothing_advice_codes` 走 `t('clothing.' + code)`,
+ * 保证英文模式不残留中文;后端还没返回 codes 时退回原始建议文本
+ * (向后兼容降级 —— 宁可显示原文,也不猜建议内容)。
  */
-defineProps({
+const props = defineProps({
+  /** 后端原始建议文本(兼容 v0.3)。 */
   text: { type: String, default: '' },
+  /** 语言无关的建议枚举(跨端契约 §3)。 */
+  codes: { type: Array, default: () => [] },
+})
+
+const { t } = useI18n()
+
+const adviceText = computed(() => {
+  const labels = resolveClothingLabels(props.codes, t)
+
+  if (labels.length) {
+    return labels.join(' / ')
+  }
+
+  return displayOrUnknown(props.text)
 })
 </script>
 

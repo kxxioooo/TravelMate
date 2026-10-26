@@ -1,15 +1,16 @@
 <template>
   <div class="tm-onboarding">
+    <!-- Onboarding 也没有主站顶部栏:语言切换固定在右上角 -->
+    <LanguageSwitcher position="fixed" />
+
     <div class="tm-onboarding-card">
       <header class="tm-onboarding-header">
         <div>
-          <h1 class="tm-onboarding-title">Tell us what you like</h1>
-          <p class="tm-onboarding-subtitle">
-            选得越具体,后续的行程建议越贴近你。也可以直接 Skip。
-          </p>
+          <h1 class="tm-onboarding-title">{{ t('onboarding.title') }}</h1>
+          <p class="tm-onboarding-subtitle">{{ t('onboarding.subtitle') }}</p>
         </div>
         <el-button v-if="authStore.user?.onboarding_completed" text @click="goHome">
-          返回首页
+          {{ t('onboarding.back_home') }}
         </el-button>
       </header>
 
@@ -17,7 +18,7 @@
 
       <footer class="tm-onboarding-footer">
         <el-button size="large" text :loading="preferencesStore.isSaving" @click="handleSkip">
-          Skip
+          {{ t('onboarding.skip') }}
         </el-button>
         <el-button
           type="primary"
@@ -25,7 +26,7 @@
           :loading="preferencesStore.isSaving"
           @click="handleSave"
         >
-          Save
+          {{ t('onboarding.save') }}
         </el-button>
       </footer>
     </div>
@@ -35,19 +36,26 @@
 <script setup>
 import { ElMessage } from 'element-plus'
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import LanguageSwitcher from '../components/common/LanguageSwitcher.vue'
 import PreferenceSelector from '../components/preferences/PreferenceSelector.vue'
 import { useAuthStore } from '../stores/auth'
 import { usePreferencesStore } from '../stores/preferences'
+import { formatLocalizedError } from '../utils/i18nDisplay'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const authStore = useAuthStore()
 const preferencesStore = usePreferencesStore()
 
-// 用 ref 而不是 reactive:PreferenceSelector 通过 v-model 抛出的是整体新对象,
-// const + reactive 无法被重新赋值(编译器只能替你悄悄改成 let),
-// 结果第一次 emit 之后 draft 就退化成普通对象。ref 才是这里正确的形状。
+/**
+ * 偏好草稿的真实形状:**落库值仍是中文原字面量**(如 `自然风景`),
+ * 英文化只发生在 PreferenceSelector 的显示层。
+ * 用 ref 而不是 reactive:PreferenceSelector 通过 v-model 抛出的是整体新对象。
+ */
 const draft = ref({
   attraction_preferences: [],
   food_preferences: [],
@@ -66,11 +74,16 @@ async function loadExistingPreferences() {
       travel_pace: data.travel_pace ?? null,
     }
   } catch (error) {
-    ElMessage.error(error.normalized?.message ?? '偏好读取失败')
+    ElMessage.error(
+      formatLocalizedError(error?.normalized ?? { status: 0 }, {
+        t,
+        fallbackKey: 'onboarding.load_failed',
+      }),
+    )
   }
 }
 
-/** 保存偏好,并把 onboarding_completed 同步到本地状态。 */
+/** 保存偏好(值不变,只换显示),并把 onboarding_completed 同步到本地状态。 */
 async function handleSave() {
   try {
     await preferencesStore.savePreferences({
@@ -80,10 +93,15 @@ async function handleSave() {
       travel_pace: draft.value.travel_pace,
     })
     authStore.setOnboardingCompleted(true)
-    ElMessage.success('偏好已保存')
+    ElMessage.success(t('onboarding.saved'))
     goHome()
   } catch (error) {
-    ElMessage.error(error.normalized?.message ?? '保存偏好失败')
+    ElMessage.error(
+      formatLocalizedError(error?.normalized ?? { status: 0 }, {
+        t,
+        fallbackKey: 'onboarding.save_failed',
+      }),
+    )
   }
 }
 
@@ -94,7 +112,12 @@ async function handleSkip() {
     authStore.setOnboardingCompleted(user?.onboarding_completed ?? true)
     goHome()
   } catch (error) {
-    ElMessage.error(error.normalized?.message ?? '操作失败,请稍后重试')
+    ElMessage.error(
+      formatLocalizedError(error?.normalized ?? { status: 0 }, {
+        t,
+        fallbackKey: 'onboarding.skip_failed',
+      }),
+    )
   }
 }
 

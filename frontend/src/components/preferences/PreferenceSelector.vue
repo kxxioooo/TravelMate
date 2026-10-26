@@ -1,7 +1,7 @@
 <template>
   <div class="tm-selector">
     <section class="tm-selector-block">
-      <h3 class="tm-section-title">景点偏好</h3>
+      <h3 class="tm-section-title">{{ t('onboarding.section_attraction') }}</h3>
       <div class="tm-chips">
         <el-check-tag
           v-for="item in ATTRACTION_PREFERENCES"
@@ -10,13 +10,14 @@
           class="tm-chip"
           @change="toggleAttractionPreference(item)"
         >
-          {{ item }}
+          <!-- 显示用当前语言的标签,`:key` / 选中判断 / emit 仍是原始中文值 -->
+          {{ preferenceLabel(item, t) }}
         </el-check-tag>
       </div>
     </section>
 
     <section class="tm-selector-block">
-      <h3 class="tm-section-title">饮食偏好</h3>
+      <h3 class="tm-section-title">{{ t('onboarding.section_food') }}</h3>
       <div class="tm-chips">
         <el-check-tag
           v-for="item in FOOD_PREFERENCES"
@@ -25,25 +26,25 @@
           class="tm-chip"
           @change="toggleFoodPreference(item)"
         >
-          {{ item }}
+          {{ preferenceLabel(item, t) }}
         </el-check-tag>
       </div>
     </section>
 
     <section class="tm-selector-block">
-      <h3 class="tm-section-title">预算</h3>
+      <h3 class="tm-section-title">{{ t('onboarding.section_budget') }}</h3>
       <el-radio-group :model-value="draft.budget" @change="selectBudget">
         <el-radio-button v-for="item in BUDGET_OPTIONS" :key="item" :value="item">
-          {{ item }}
+          {{ preferenceLabel(item, t) }}
         </el-radio-button>
       </el-radio-group>
     </section>
 
     <section class="tm-selector-block">
-      <h3 class="tm-section-title">旅行节奏</h3>
+      <h3 class="tm-section-title">{{ t('onboarding.section_pace') }}</h3>
       <el-radio-group :model-value="draft.travel_pace" @change="selectTravelPace">
         <el-radio-button v-for="item in TRAVEL_PACE_OPTIONS" :key="item" :value="item">
-          {{ item }}
+          {{ preferenceLabel(item, t) }}
         </el-radio-button>
       </el-radio-group>
     </section>
@@ -52,19 +53,30 @@
 
 <script setup>
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   ATTRACTION_PREFERENCES,
   BUDGET_OPTIONS,
   FOOD_PREFERENCES,
   TRAVEL_PACE_OPTIONS,
+  preferenceLabel,
 } from '../../constants/preferences'
 
+/**
+ * 偏好选择器。
+ *
+ * v0.3.1 关键约束:数组元素是**落库值**(中文原字面量),
+ * 这里只用 `preferenceLabel()` 做显示翻译;`:key`、`includes()` 判断、
+ * emit 出去的对象全部保持原始中文值,不会污染 v0.3 的数据与后端校验。
+ */
 const props = defineProps({
   modelValue: { type: Object, required: true },
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const { t } = useI18n()
 
 const draft = reactive({
   attraction_preferences: [...(props.modelValue.attraction_preferences ?? [])],
@@ -119,7 +131,7 @@ function selectTravelPace(value) {
   emitValue()
 }
 
-/** 统一向父组件发送完整结构。 */
+/** 统一向父组件发送完整结构(值不变,仍是中文原字面量)。 */
 function emitValue() {
   emit('update:modelValue', {
     attraction_preferences: [...draft.attraction_preferences],

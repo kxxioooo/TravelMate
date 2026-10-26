@@ -1,25 +1,29 @@
 <template>
   <div class="tm-settings">
     <el-descriptions :column="1" border>
-      <el-descriptions-item label="Username">
+      <el-descriptions-item :label="t('app.settings_username')">
         {{ authStore.user?.username ?? '-' }}
       </el-descriptions-item>
-      <el-descriptions-item label="Email">
+      <el-descriptions-item :label="t('app.settings_email')">
         {{ authStore.user?.email ?? '-' }}
       </el-descriptions-item>
-      <el-descriptions-item label="Version">v0.1</el-descriptions-item>
+      <el-descriptions-item :label="t('app.settings_version')">v0.3.1</el-descriptions-item>
     </el-descriptions>
 
-    <p class="tm-settings-hint">v0.1 只展示基础信息,复杂账户设置留待后续版本。</p>
+    <p class="tm-settings-hint">{{ t('app.settings_hint') }}</p>
 
     <footer class="tm-settings-footer">
-      <el-button text @click="closePanel">关闭</el-button>
+      <el-button text @click="closePanel">{{ t('common.close') }}</el-button>
     </footer>
   </div>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
 import { useAuthStore } from '../../stores/auth'
+
+const { t } = useI18n()
 
 const authStore = useAuthStore()
 

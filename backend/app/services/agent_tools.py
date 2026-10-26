@@ -12,14 +12,28 @@
 统一返回信封(便于 Agent 循环与 Activity 判断):
     {"ok": True,  "data": {...}, "error": None}
     {"ok": False, "data": None,  "error": "受控错误说明"}
+
+v0.3.1(契约 §8):工具的**名称、参数与调用方式完全不变**;
+- 英文 locale 下给模型返回一致的 bilingual 实体信息(name_en / name_en_source 等),
+  由 `entity_localization_service` 后置补齐,模型据此组成 `English (中文)`;
+- 英文搜索关键词先解析成中文再查高德(解析不出来就是受控工具失败,不悄悄丢关键字)。
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.services import attraction_service, food_service, preference_service, weather_service
+from app.core.errors import AppError
+from app.core.locale import DEFAULT_LOCALE, LOCALE_EN_US
+from app.services import (
+    attraction_service,
+    entity_localization_service,
+    food_service,
+    preference_service,
+    query_translation_service,
+    weather_service,
+)
 from app.services.amap_client import AmapError
 from app.services.deepseek_client import DeepSeekError
 
@@ -49,6 +63,7 @@ PREFERENCES_FAILED_MESSAGE = "偏好读取失败"
 WEATHER_FAILED_MESSAGE = "天气查询失败"
 ATTRACTION_FAILED_MESSAGE = "景点查询失败"
 FOOD_FAILED_MESSAGE = "美食查询失败"
+KEYWORD_UNRECOGNIZED_MESSAGE = "无法可靠识别该搜索词,请换一个中文或英文关键词"
 
 #: 每个工具允许模型提供的参数名;多余参数(例如伪造的 user_id)一律丢弃
 _TOOL_PARAMETERS: dict[str, tuple[str, ...]] = {
@@ -95,6 +110,80 @@ def _find_city(context: Mapping[str, Any], city_name: Any) -> Optional[Mapping[s
         if _clean_str(city.get("adcode")) == wanted:
             return city
     return None
+
+
+def _context_locale(context: Mapping[str, Any]) -> str:
+    """本次请求的 locale(缺省 zh-CN):只影响展示字段,不影响任何事实字段。"""
+    if isinstance(context, Mapping) and isinstance(context.get("locale"), str):
+        return context.get("locale") or DEFAULT_LOCALE
+    return DEFAULT_LOCALE
+
+
+def _city_payload(city: Mapping[str, Any]) -> dict[str, Any]:
+    """给模型的城市信息:中文原名 + adcode(+ 词典里的英文名,如果有)。"""
+    payload: dict[str, Any] = {
+        "city_name": city.get("city_name"),
+        "adcode": city.get("adcode"),
+    }
+    city_name_en = entity_localization_service.lookup_city_translation(city.get("city_name"))
+    if city_name_en:
+        payload["city_name_en"] = city_name_en
+    return payload
+
+
+async def _resolve_tool_keyword(
+    context: Mapping[str, Any], keyword: str, locale: str
+) -> Optional[str]:
+    """工具里的关键词同样要落到中文检索词;解析不出来返回 None(受控失败)。"""
+    try:
+        return await query_translation_service.resolve_search_keyword(
+            context.get("db"), keyword, locale
+        )
+    except AppError:
+        return None
+
+
+async def _localize_attraction_items(
+    context: Mapping[str, Any], items: Sequence[Any]
+) -> Sequence[Any]:
+    """英文 locale 下给模型补 name_en / name_en_source;失败就退回中文(绝不 500)。"""
+    locale = _context_locale(context)
+    if locale != LOCALE_EN_US or not items:
+        return items
+    try:
+        return await entity_localization_service.localize_attraction_summaries(
+            context.get("db"), list(items), locale
+        )
+    except Exception:  # noqa: BLE001 - 双语化失败不能影响工具结果
+        return items
+
+
+async def _localize_restaurant_items(
+    context: Mapping[str, Any], items: Sequence[Any]
+) -> Sequence[Any]:
+    locale = _context_locale(context)
+    if locale != LOCALE_EN_US or not items:
+        return items
+    try:
+        return await entity_localization_service.localize_restaurant_summaries(
+            context.get("db"), list(items), locale
+        )
+    except Exception:  # noqa: BLE001
+        return items
+
+
+async def _localize_featured_food_items(
+    context: Mapping[str, Any], items: Sequence[Any]
+) -> Sequence[Any]:
+    locale = _context_locale(context)
+    if locale != LOCALE_EN_US or not items:
+        return items
+    try:
+        return await entity_localization_service.localize_featured_foods(
+            context.get("db"), list(items), locale
+        )
+    except Exception:  # noqa: BLE001
+        return items
 
 
 def build_tool_definitions() -> list[dict[str, Any]]:
@@ -220,7 +309,8 @@ async def get_weather_tool(context: Mapping[str, Any], city_name: Optional[str] 
     except AmapError:
         return _fail(WEATHER_FAILED_MESSAGE)
 
-    payload = weather.model_dump(mode="json")
+    payload = _city_payload(city)
+    payload.update(weather.model_dump(mode="json"))
     payload["city_name"] = city.get("city_name")
     payload["adcode"] = city.get("adcode")
     return _ok(payload)
@@ -234,13 +324,21 @@ async def search_attractions_tool(
     if city is None:
         return _fail(UNSELECTED_CITY_MESSAGE)
 
+    locale = _context_locale(context)
     safe_keyword = _clean_str(keyword)
+    resolved_keyword: Optional[str] = None
+    if safe_keyword:
+        # 英文关键词先转成中文再查高德(解析不出来就是受控失败,不丢关键字)
+        resolved_keyword = await _resolve_tool_keyword(context, safe_keyword, locale)
+        if not resolved_keyword:
+            return _fail(KEYWORD_UNRECOGNIZED_MESSAGE)
+
     try:
-        if safe_keyword:
+        if resolved_keyword:
             paged = await attraction_service.search_attractions(
                 city_name=city.get("city_name") or "",
                 adcode=city.get("adcode"),
-                keyword=safe_keyword,
+                keyword=resolved_keyword,
                 page=1,
                 page_size=ATTRACTION_PAGE_SIZE,
             )
@@ -251,16 +349,17 @@ async def search_attractions_tool(
     except AmapError:
         return _fail(ATTRACTION_FAILED_MESSAGE)
 
-    return _ok(
+    items = await _localize_attraction_items(context, paged.items)
+    payload = _city_payload(city)
+    payload.update(
         {
-            "city_name": city.get("city_name"),
-            "adcode": city.get("adcode"),
-            "keyword": safe_keyword,
-            "items": [item.model_dump(mode="json") for item in paged.items],
+            "keyword": resolved_keyword,
+            "items": [item.model_dump(mode="json") for item in items],
             "total": paged.total,
             "has_more": paged.has_more,
         }
     )
+    return _ok(payload)
 
 
 async def search_food_tool(
@@ -271,17 +370,25 @@ async def search_food_tool(
     if city is None:
         return _fail(UNSELECTED_CITY_MESSAGE)
 
+    locale = _context_locale(context)
     safe_keyword = _clean_str(keyword)
+    resolved_keyword: Optional[str] = None
+    if safe_keyword:
+        resolved_keyword = await _resolve_tool_keyword(context, safe_keyword, locale)
+        if not resolved_keyword:
+            return _fail(KEYWORD_UNRECOGNIZED_MESSAGE)
+
     try:
-        if safe_keyword:
+        if resolved_keyword:
             paged = await food_service.search_food_restaurants(
                 city_name=city.get("city_name") or "",
-                keyword=safe_keyword,
+                keyword=resolved_keyword,
                 page=1,
                 page_size=FOOD_PAGE_SIZE,
                 adcode=city.get("adcode"),
             )
-            items = [item.model_dump(mode="json") for item in paged.items]
+            localized = await _localize_restaurant_items(context, paged.items)
+            items = [item.model_dump(mode="json") for item in localized]
             total: Optional[int] = paged.total
             has_more: Optional[bool] = paged.has_more
             mode = "restaurants"
@@ -289,24 +396,25 @@ async def search_food_tool(
             featured = await food_service.get_featured_foods(
                 city_name=city.get("city_name") or "", adcode=city.get("adcode")
             )
-            items = [item.model_dump(mode="json") for item in featured.items]
+            localized_foods = await _localize_featured_food_items(context, featured.items)
+            items = [item.model_dump(mode="json") for item in localized_foods]
             total = len(items)
             has_more = False
             mode = "featured"
     except (AmapError, DeepSeekError, SQLAlchemyError):
         return _fail(FOOD_FAILED_MESSAGE)
 
-    return _ok(
+    payload = _city_payload(city)
+    payload.update(
         {
-            "city_name": city.get("city_name"),
-            "adcode": city.get("adcode"),
-            "keyword": safe_keyword,
+            "keyword": resolved_keyword,
             "mode": mode,
             "items": items,
             "total": total,
             "has_more": has_more,
         }
     )
+    return _ok(payload)
 
 
 async def execute_tool(

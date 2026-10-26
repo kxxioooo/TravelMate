@@ -7,22 +7,29 @@
     v-show="conversationStore.drawerVisible"
     class="tm-conversation-drawer"
     role="dialog"
-    aria-label="Conversations"
+    :aria-label="t('conversation.drawer_title')"
   >
     <header class="tm-drawer-header">
-      <h3 class="tm-drawer-title">Conversations</h3>
-      <button type="button" class="tm-drawer-close" aria-label="关闭会话列表" @click="handleClose">
+      <h3 class="tm-drawer-title">{{ t('conversation.drawer_title') }}</h3>
+      <button
+        type="button"
+        class="tm-drawer-close"
+        :aria-label="t('conversation.close')"
+        @click="handleClose"
+      >
         ✕
       </button>
     </header>
 
-    <button type="button" class="tm-drawer-new-chat" @click="openNewChat">+ New Chat</button>
+    <button type="button" class="tm-drawer-new-chat" @click="openNewChat">
+      + {{ t('conversation.new_chat') }}
+    </button>
 
     <p v-if="conversationStore.isLoading && !conversationStore.items.length" class="tm-drawer-hint">
-      正在加载会话…
+      {{ t('conversation.loading') }}
     </p>
     <p v-else-if="!conversationStore.items.length" class="tm-drawer-hint">
-      还没有会话,点上面的 + New Chat 开始。
+      {{ t('conversation.empty') }}
     </p>
 
     <ul v-else class="tm-drawer-list">
@@ -34,9 +41,7 @@
           @click="selectConversation(item)"
         >
           <span class="tm-conversation-item-title">{{ fallbackConversationTitle(item.title) }}</span>
-          <span class="tm-conversation-item-cities">
-            {{ (item.cities ?? []).map((city) => city.city_name).join(' · ') || '未选择城市' }}
-          </span>
+          <span class="tm-conversation-item-cities">{{ citiesText(item.cities) }}</span>
         </button>
       </li>
     </ul>
@@ -45,13 +50,26 @@
 
 <script setup>
 import { watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useConversationStore } from '../../stores/conversations'
 import { fallbackConversationTitle } from '../../utils/chat'
+import { displayCityName } from '../../utils/i18nDisplay'
 
 const emit = defineEmits(['new-chat'])
 
+const { t, locale } = useI18n()
+
 const conversationStore = useConversationStore()
+
+/** 会话绑定的城市:英文模式 `Chengdu (成都)`,没有城市时用当前语言的"未选择城市"。 */
+function citiesText(cities) {
+  const names = (Array.isArray(cities) ? cities : [])
+    .map((city) => displayCityName(city, locale.value))
+    .filter(Boolean)
+
+  return names.length ? names.join(' · ') : t('conversation.no_city')
+}
 
 /** §19 loadHistory():打开 Drawer 时刷新会话列表。 */
 async function loadHistory() {

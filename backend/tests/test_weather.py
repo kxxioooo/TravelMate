@@ -110,8 +110,12 @@ def test_weather_success(monkeypatch, client_fixture, user_payload_fixture):
         "humidity": 65.0,
         "wind_direction": "东北",
         "wind_power": "3",
+        # v0.3.1(契约 §3):新增语言无关的 weather_code,旧字段语义一个都没变
+        "weather_code": "CLOUDY",
     }
     assert body["clothing_advice"] == "薄外套"
+    # 18℃ -> 薄外套档,不下雨就没有 UMBRELLA
+    assert body["clothing_advice_codes"] == ["LIGHT_JACKET"]
 
 
 def test_clothing_advice_cold(monkeypatch, client_fixture, user_payload_fixture):
@@ -193,8 +197,11 @@ def test_weather_external_api_failure(monkeypatch, client_fixture, user_payload_
         "humidity": None,
         "wind_direction": None,
         "wind_power": None,
+        # 天气文本缺失也必须有明确 code:UNKNOWN,而不是残留中文
+        "weather_code": "UNKNOWN",
     }
     assert empty.json()["clothing_advice"] == "暂无信息"
+    assert empty.json()["clothing_advice_codes"] == ["UNKNOWN"]
 
     # 未登录一律 401
     client_fixture.cookies.clear()

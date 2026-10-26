@@ -21,6 +21,7 @@
       :city="cityStore.selectedCity"
       :weather="cityStore.weather"
       :clothing-advice="cityStore.clothingAdvice"
+      :clothing-advice-codes="cityStore.clothingAdviceCodes"
       :weather-loading="cityStore.isWeatherLoading"
       :username="authStore.user?.username ?? ''"
     >
@@ -33,7 +34,7 @@
   <!-- Drawer / Dialog:同一时刻只开一个,由 activePanel 决定 -->
   <el-dialog
     :model-value="activePanel !== null"
-    :title="activePanel === 'prompts' ? 'Recommended Prompts' : 'Settings'"
+    :title="dialogTitle"
     width="620px"
     align-center
     @update:model-value="closeActivePanel"
@@ -49,7 +50,8 @@
 
 <script setup>
 import { ElMessage } from 'element-plus'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import ChatPanel from '../components/ai/ChatPanel.vue'
@@ -63,6 +65,9 @@ import { useChatStore } from '../stores/chat'
 import { useCityStore } from '../stores/city'
 import { useConversationStore } from '../stores/conversations'
 import { useFoodStore } from '../stores/food'
+import { displayCityName } from '../utils/i18nDisplay'
+
+const { t, locale } = useI18n()
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -75,6 +80,11 @@ const chatStore = useChatStore()
 const activePanel = ref(null)
 /** 两种布局下只有一侧处于挂载状态,ref 始终指向当前真实存在的 ChatPanel。 */
 const chatPanelRef = ref(null)
+
+/** 弹窗标题跟随语言:推荐问题 / 设置。 */
+const dialogTitle = computed(() =>
+  activePanel.value === 'prompts' ? t('nav.recommended_prompts') : t('app.settings_title'),
+)
 
 /**
  * 选中城市后的统一入口。
@@ -95,7 +105,7 @@ async function handleCitySelected(city) {
   foodStore.resetFoodState()
 
   await Promise.all([cityTask, attractionTask])
-  ElMessage.success(`已选择 ${city.city_name}`)
+  ElMessage.success(t('city.selected_toast', { city: displayCityName(city, locale.value) }))
 }
 
 /**

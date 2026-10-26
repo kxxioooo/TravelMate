@@ -6,7 +6,7 @@
         class="tm-attraction-card-image"
         :src="coverUrl"
         fit="cover"
-        alt=""
+        :alt="attractionName"
       >
         <template #error>
           <div class="tm-attraction-card-placeholder">
@@ -21,18 +21,18 @@
       </el-image>
       <div v-else class="tm-attraction-card-placeholder">
         <el-icon><Picture /></el-icon>
-        <span>暂无图片</span>
+        <span>{{ t('common.no_image') }}</span>
       </div>
     </div>
 
     <div class="tm-attraction-card-body">
-      <h3 class="tm-attraction-card-name">{{ displayOrUnknown(attraction?.name) }}</h3>
+      <h3 class="tm-attraction-card-name">{{ attractionName }}</h3>
 
       <div v-if="hasRating" class="tm-attraction-card-rating">
         <el-rate :model-value="attraction.rating" disabled allow-half size="small" />
         <span class="tm-attraction-card-score">{{ ratingText }}</span>
       </div>
-      <p v-else class="tm-attraction-card-no-rating">评分:暂无信息</p>
+      <p v-else class="tm-attraction-card-no-rating">{{ t('attraction.no_rating') }}</p>
 
       <div class="tm-attraction-card-tags">
         <template v-if="tags.length">
@@ -47,12 +47,12 @@
             {{ tag }}
           </el-tag>
         </template>
-        <span v-else class="tm-attraction-card-no-tag">标签:暂无信息</span>
+        <span v-else class="tm-attraction-card-no-tag">{{ t('attraction.no_tag') }}</span>
       </div>
 
       <div class="tm-attraction-card-footer">
         <el-button class="tm-attraction-detail-btn" type="primary" plain @click="openDetail">
-          详情
+          {{ t('attraction.detail_button') }}
         </el-button>
       </div>
     </div>
@@ -62,13 +62,17 @@
 <script setup>
 import { Picture } from '@element-plus/icons-vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import { resolveLocalizedTags } from '../../constants/localizedTerms'
 import { displayOrUnknown, safePhotoUrls } from '../../utils/display'
+import { displayBilingualName } from '../../utils/i18nDisplay'
 
 /**
  * 景点卡片:封面图 + 名称 + 评分(有则显示) + 标签 + 详情按钮。
  *
- * 卡片自己不请求接口,详情交给父级 → store。
+ * 英文模式名称是 `West Lake (西湖)`;评分、poi_id、图片 URL 等事实字段
+ * 永远保持原值。卡片自己不请求接口,详情交给父级 → store。
  */
 const props = defineProps({
   attraction: { type: Object, required: true },
@@ -76,17 +80,30 @@ const props = defineProps({
 
 const emit = defineEmits(['open-detail'])
 
+const { t, locale } = useI18n()
+
 /** 后端给的是网络图片 URL,这里做空值 / 重复 / 非法过滤。 */
 const coverUrl = computed(() => safePhotoUrls(props.attraction?.cover_photo)[0] ?? '')
+
+/** 双语名称:有英文名才加括号中文,没有英文名不伪造。 */
+const attractionName = computed(
+  () =>
+    displayBilingualName(props.attraction?.name, props.attraction?.name_en, locale.value) ||
+    displayOrUnknown(null),
+)
 
 const hasRating = computed(() => Number.isFinite(props.attraction?.rating) && props.attraction.rating > 0)
 
 const ratingText = computed(() => (hasRating.value ? Number(props.attraction.rating).toFixed(1) : ''))
 
+/** 标签:优先后端 `tags_en`,否则走已审核的分类映射,未收录的保留高德原文。 */
 const tags = computed(() =>
-  Array.isArray(props.attraction?.tags)
-    ? props.attraction.tags.filter((tag) => typeof tag === 'string' && tag.trim())
-    : [],
+  resolveLocalizedTags(
+    props.attraction?.tags,
+    props.attraction?.tags_en,
+    locale.value,
+    t,
+  ),
 )
 
 /** 向上抛出详情意图,不直接请求 API。 */

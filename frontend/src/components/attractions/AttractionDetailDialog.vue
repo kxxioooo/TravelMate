@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :model-value="Boolean(detail)"
-    :title="displayOrUnknown(detail?.name)"
+    :title="detailTitle"
     width="720px"
     align-center
     @update:model-value="handleClose"
@@ -17,7 +17,7 @@
           :preview-src-list="photos"
           :initial-index="index"
           preview-teleported
-          alt=""
+          :alt="detailTitle"
         >
           <template #error>
             <div class="tm-attraction-detail-photo-fallback">
@@ -26,18 +26,18 @@
           </template>
         </el-image>
       </div>
-      <p v-else class="tm-attraction-detail-no-photo">图片:暂无信息</p>
+      <p v-else class="tm-attraction-detail-no-photo">{{ t('attraction.detail_no_photo') }}</p>
 
       <el-descriptions class="tm-attraction-detail-info" :column="1" border>
-        <el-descriptions-item label="地址">
-          {{ displayOrUnknown(detail?.address) }}
+        <el-descriptions-item :label="t('attraction.detail_address')">
+          {{ addressText }}
         </el-descriptions-item>
 
-        <el-descriptions-item label="价格 / 门票">
+        <el-descriptions-item :label="t('attraction.detail_cost')">
           {{ formatPrice(detail?.cost) }}
         </el-descriptions-item>
 
-        <el-descriptions-item label="标签">
+        <el-descriptions-item :label="t('attraction.detail_tags')">
           <template v-if="tags.length">
             <el-tag
               v-for="(tag, index) in tags"
@@ -50,7 +50,7 @@
               {{ tag }}
             </el-tag>
           </template>
-          <span v-else>暂无信息</span>
+          <span v-else>{{ t('common.unknown') }}</span>
         </el-descriptions-item>
       </el-descriptions>
 
@@ -62,14 +62,18 @@
 <script setup>
 import { Picture } from '@element-plus/icons-vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import { resolveLocalizedTags } from '../../constants/localizedTerms'
 import { displayOrUnknown, formatPrice, safePhotoUrls } from '../../utils/display'
+import { displayBilingualAddress, displayBilingualName } from '../../utils/i18nDisplay'
 
 /**
  * 景点详情弹窗。
  *
  * 只展示:更多照片、地址、价格 / 门票、标签。
- * 经纬度(location)即使后端返回也不在 UI 展示。
+ * 英文模式下名称与地址都是 `English (中文)`;经纬度(location)即使后端
+ * 返回也不在 UI 展示,价格 / 评分 / poi_id 等事实字段保持原值。
  */
 const props = defineProps({
   detail: { type: Object, default: null },
@@ -78,12 +82,24 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+const { t, locale } = useI18n()
+
 const photos = computed(() => safePhotoUrls(props.detail?.photos))
 
+const detailTitle = computed(
+  () =>
+    displayBilingualName(props.detail?.name, props.detail?.name_en, locale.value) ||
+    displayOrUnknown(null),
+)
+
+const addressText = computed(
+  () =>
+    displayBilingualAddress(props.detail?.address, props.detail?.address_en, locale.value) ||
+    displayOrUnknown(props.detail?.address),
+)
+
 const tags = computed(() =>
-  Array.isArray(props.detail?.tags)
-    ? props.detail.tags.filter((tag) => typeof tag === 'string' && tag.trim())
-    : [],
+  resolveLocalizedTags(props.detail?.tags, props.detail?.tags_en, locale.value, t),
 )
 
 /** 关闭弹窗,把意图交给父级。 */

@@ -3,7 +3,7 @@
     <el-input
       v-model="keyword"
       class="tm-conversation-city-search"
-      placeholder="搜索城市(中文 / 拼音),可添加多个"
+      :placeholder="t('conversation.city_search_placeholder')"
       clearable
     >
       <template #prefix>
@@ -14,19 +14,20 @@
     <ul v-if="candidates.length" class="tm-city-options">
       <li v-for="city in candidates" :key="city.adcode">
         <button type="button" class="tm-city-option-item" @click="toggleCity(city)">
-          <span class="tm-city-option-name">{{ city.city_name }}</span>
-          <span class="tm-city-option-meta">{{ city.province }}</span>
+          <!-- 英文模式 `Chengdu (成都)` / `Sichuan (四川)`;命中值仍是中文名 + adcode -->
+          <span class="tm-city-option-name">{{ optionName(city) }}</span>
+          <span class="tm-city-option-meta">{{ optionMeta(city) }}</span>
         </button>
       </li>
     </ul>
 
     <div class="tm-city-chips">
       <span v-for="city in selectedCities" :key="city.adcode" class="tm-city-chip">
-        <span class="tm-city-chip-name">{{ city.city_name }}</span>
+        <span class="tm-city-chip-name">{{ optionName(city) }}</span>
         <button
           type="button"
           class="tm-city-chip-remove"
-          :aria-label="`移除 ${city.city_name}`"
+          :aria-label="t('conversation.remove_city', { city: optionName(city) })"
           @click="removeCity(city.adcode)"
         >
           ×
@@ -34,7 +35,7 @@
       </span>
 
       <span v-if="!selectedCities.length" class="tm-city-chips-hint">
-        未选择城市(也可以不选,直接做通用旅行咨询)
+        {{ t('conversation.chips_empty_hint') }}
       </span>
     </div>
   </div>
@@ -43,9 +44,12 @@
 <script setup>
 import { Search } from '@element-plus/icons-vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import cities from '../../data/cities.json'
 import { searchCities } from '../../utils/citySearch'
+import { displayBilingualName, displayProvinceName } from '../../utils/i18nDisplay'
+import { enrichCity } from '../../utils/localeSearch'
 
 /** 搜索关键词由父组件(NewConversationDialog)持有,resetForm() 才能一并清空。 */
 const keyword = defineModel('keyword', { type: String, default: '' })
@@ -56,12 +60,28 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle-city', 'remove-city'])
 
-/** §21.1 复用 v0.2 的 cities.json + searchCities(),不新建第二份城市数据。 */
+const { t, locale } = useI18n()
+
+/**
+ * §21.1 复用 cities.json + searchCities(),不新建第二份城市数据。
+ * 中文 / 中文片段 / 拼音 / 首字母 / 英文名 / 英文别名都能命中。
+ */
 function searchAvailableCities(value) {
   return searchCities(cities, value, 8)
 }
 
 const candidates = computed(() => searchAvailableCities(keyword.value))
+
+/** 候选城市主标题:`Chengdu (成都)` / `成都`。 */
+function optionName(city) {
+  const enriched = enrichCity(city) ?? {}
+  return displayBilingualName(enriched.city_name, enriched.city_name_en, locale.value) || t('common.unknown')
+}
+
+/** 候选城市副标题:省份(英文模式带括号中文)。 */
+function optionMeta(city) {
+  return displayProvinceName(city, locale.value)
+}
 
 /** §21.2 加入还是移除由父组件按 adcode 判断。 */
 function toggleCity(city) {

@@ -305,9 +305,15 @@ def test_search_food_keyword_mode(monkeypatch, db_session):
     assert result["data"]["keyword"] == "火锅"
     assert result["data"]["items"] == [{"poi_id": "R1", "name": "蜀大侠火锅"}]
 
-    # Activity 文案按 §34 的规则生成
+    # Activity 文案按 §34 的规则生成;v0.3.1(契约 §4)追加 code + params
     activity = agent_service.build_activity("search_food", {"city_name": "成都", "keyword": "火锅"}, result)
-    assert activity == {"type": "food", "status": "success", "text": "已找到成都“火锅”相关餐厅"}
+    assert activity == {
+        "type": "food",
+        "status": "success",
+        "code": "agent.food_found",
+        "params": {"city_name": "成都", "city_adcode": "510100", "keyword": "火锅"},
+        "text": "已找到成都“火锅”相关餐厅",
+    }
 
 
 def test_unknown_tool_rejected(db_session):

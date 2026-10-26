@@ -1,17 +1,16 @@
 import { defineStore } from 'pinia'
 
 import { getMessages, sendMessage } from '../api/chat'
+import { toErrorInfo } from '../api/http'
 import { buildLocalUserMessage, normalizeActivities } from '../utils/chat'
-
-/** 读取统一的失败文案(api/http.js 的拦截器已经把 detail 归一化)。 */
-function resolveErrorMessage(error, fallback) {
-  return error?.normalized?.message ?? error?.message ?? fallback
-}
 
 /**
  * 后端一条 message -> 前端稳定结构。
  *
  * 只保留 role / content / created_at,前端不展示任何内部字段(§43)。
+ *
+ * v0.3.1 关键约束:历史消息的 `content` **原样保存、原样渲染**。
+ * 切换语言绝不翻译、不覆盖、不重新生成(规格 §8.2)。
  */
 function normalizeMessage(item, fallbackId) {
   if (!item || typeof item !== 'object') {
@@ -46,7 +45,7 @@ export const useChatStore = defineStore('chat', {
     activities: [],
     draftPrompt: '',
     isSending: false,
-    error: '',
+    error: null,
   }),
 
   actions: {
@@ -54,19 +53,19 @@ export const useChatStore = defineStore('chat', {
      * §24.1 拉取某个会话的历史消息。
      *
      * 无论成功失败都先把 messages 置空,再替换 —— 绝不在切换会话时
-     * 让上一条会话的消息短暂可见。
+     * 让上一条会话的消息短暂可见。历史 content 不翻译。
      */
     async loadMessages(conversationId) {
       if (conversationId === null || conversationId === undefined || conversationId === '') {
         this.messages = []
         this.activities = []
-        this.error = ''
+        this.error = null
         return []
       }
 
       this.messages = []
       this.activities = []
-      this.error = ''
+      this.error = null
       this.isSending = false
 
       try {
@@ -77,7 +76,7 @@ export const useChatStore = defineStore('chat', {
         return this.messages
       } catch (error) {
         this.messages = []
-        this.error = resolveErrorMessage(error, '消息加载失败,请稍后重试')
+        this.error = toErrorInfo(error)
         return []
       }
     },
@@ -98,11 +97,11 @@ export const useChatStore = defineStore('chat', {
       }
 
       if (conversationId === null || conversationId === undefined || conversationId === '') {
-        this.error = '当前没有可用会话,请先新建会话'
+        this.error = { status: 0, errorCode: '', key: 'chat.no_conversation_error', detail: '' }
         return null
       }
 
-      this.error = ''
+      this.error = null
       // 2. isSending = true
       this.isSending = true
 
@@ -116,8 +115,8 @@ export const useChatStore = defineStore('chat', {
        */
       let streamToken = this.messages
 
-      // 4. 显示真实的等待状态(不是伪造的工具调用)
-      this.activities = [{ type: 'agent', status: 'running', text: '正在理解请求……' }]
+      // 4. 显示真实的等待状态(不是伪造的工具调用,只是本地 UI 状态)
+      this.activities = [{ type: 'agent', status: 'running', code: 'agent.thinking', params: null, text: '' }]
 
       try {
         // 5. POST backend
@@ -155,7 +154,7 @@ export const useChatStore = defineStore('chat', {
         }
 
         // 失败:保留用户输入(标记为失败,可点击重试),不写伪成功消息
-        this.error = resolveErrorMessage(error, '发送失败,请重试')
+        this.error = toErrorInfo(error)
         this.messages = this.messages.map((message) =>
           message.id === localMessage.id ? { ...message, pending: false, failed: true } : message,
         )
@@ -185,7 +184,7 @@ export const useChatStore = defineStore('chat', {
     clearChatState() {
       this.messages = []
       this.activities = []
-      this.error = ''
+      this.error = null
       this.isSending = false
     },
 

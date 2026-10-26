@@ -1,0 +1,1328 @@
+{
+  "version": "1",
+  "search_aliases": {
+    "ancient town": "古镇",
+    "ancient city": "古城",
+    "old town": "老街",
+    "old street": "老街",
+    "pedestrian street": "步行街",
+    "hot pot": "火锅",
+    "hotpot": "火锅",
+    "museum": "博物馆",
+    "park": "公园",
+    "temple": "寺庙",
+    "buddhist temple": "寺庙",
+    "taoist temple": "道观",
+    "confucius temple": "文庙",
+    "mosque": "清真寺",
+    "church": "教堂",
+    "cathedral": "教堂",
+    "mountain": "山",
+    "lake": "湖",
+    "river": "河",
+    "waterfall": "瀑布",
+    "cave": "溶洞",
+    "garden": "园林",
+    "palace": "宫",
+    "tower": "塔",
+    "pagoda": "塔",
+    "bridge": "桥",
+    "beach": "海滩",
+    "island": "岛",
+    "scenic area": "风景区",
+    "scenic spot": "景点",
+    "viewing platform": "观景台",
+    "observation deck": "观景台",
+    "night market": "夜市",
+    "food street": "美食街",
+    "street food": "小吃",
+    "snack": "小吃",
+    "snacks": "小吃",
+    "teahouse": "茶馆",
+    "tea house": "茶馆",
+    "cafe": "咖啡馆",
+    "coffee": "咖啡",
+    "bar": "酒吧",
+    "restaurant": "餐厅",
+    "noodle shop": "面馆",
+    "hotel": "酒店",
+    "hostel": "青年旅舍",
+    "guesthouse": "民宿",
+    "shopping mall": "购物中心",
+    "mall": "购物中心",
+    "market": "市场",
+    "supermarket": "超市",
+    "cinema": "电影院",
+    "theater": "剧院",
+    "theatre": "剧院",
+    "library": "图书馆",
+    "university": "大学",
+    "stadium": "体育场",
+    "gym": "健身房",
+    "swimming pool": "游泳池",
+    "hospital": "医院",
+    "pharmacy": "药店",
+    "bank": "银行",
+    "atm": "自动取款机",
+    "parking lot": "停车场",
+    "gas station": "加油站",
+    "subway station": "地铁站",
+    "metro station": "地铁站",
+    "bus stop": "公交车站",
+    "train station": "火车站",
+    "railway station": "火车站",
+    "airport": "机场",
+    "toilet": "公共厕所",
+    "restroom": "公共厕所",
+    "forest park": "森林公园",
+    "national park": "国家公园",
+    "botanical garden": "植物园",
+    "zoo": "动物园",
+    "aquarium": "水族馆",
+    "amusement park": "游乐园",
+    "theme park": "主题公园",
+    "square": "广场",
+    "ruins": "遗址",
+    "ancient ruins": "遗址",
+    "tomb": "陵墓",
+    "mausoleum": "陵",
+    "glacier": "冰川",
+    "grassland": "草原",
+    "desert": "沙漠",
+    "canyon": "峡谷",
+    "gorge": "峡谷",
+    "wetland": "湿地",
+    "hot spring": "温泉",
+    "spa": "温泉",
+    "ski resort": "滑雪场",
+    "golf course": "高尔夫球场",
+    "cable car": "索道",
+    "cruise": "游船",
+    "boat tour": "游船",
+    "exhibition hall": "展览馆",
+    "art gallery": "美术馆",
+    "science museum": "科技馆",
+    "barbecue": "烧烤",
+    "bbq": "烧烤",
+    "seafood": "海鲜",
+    "dessert": "甜点",
+    "dumplings": "饺子",
+    "noodles": "面",
+    "sichuan cuisine": "川菜",
+    "cantonese cuisine": "粤菜",
+    "dim sum": "点心",
+    "roast duck": "烤鸭",
+    "peking duck": "北京烤鸭",
+    "soup dumplings": "小笼包",
+    "rice noodles": "米线",
+    "west lake": "西湖",
+    "forbidden city": "故宫",
+    "summer palace": "颐和园",
+    "tiananmen": "天安门",
+    "the bund": "外滩",
+    "bund": "外滩",
+    "terracotta army": "兵马俑",
+    "terracotta warriors": "兵马俑",
+    "yellow crane tower": "黄鹤楼",
+    "wuhou shrine": "武侯祠",
+    "kuanzhai alley": "宽窄巷子",
+    "great wall": "长城",
+    "panda base": "熊猫基地",
+    "giant panda": "熊猫",
+    "mapo tofu": "麻婆豆腐",
+    "kung pao chicken": "宫保鸡丁",
+    "peking roast duck": "北京烤鸭"
+  },
+  "places": {
+    "西湖": {
+      "en": "West Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "故宫": {
+      "en": "Forbidden City",
+      "source": "verified",
+      "aliases": []
+    },
+    "故宫博物院": {
+      "en": "Palace Museum",
+      "source": "verified",
+      "aliases": []
+    },
+    "颐和园": {
+      "en": "Summer Palace",
+      "source": "verified",
+      "aliases": []
+    },
+    "圆明园": {
+      "en": "Old Summer Palace",
+      "source": "verified",
+      "aliases": []
+    },
+    "天安门": {
+      "en": "Tiananmen",
+      "source": "verified",
+      "aliases": []
+    },
+    "天安门广场": {
+      "en": "Tiananmen Square",
+      "source": "verified",
+      "aliases": []
+    },
+    "天坛": {
+      "en": "Temple of Heaven",
+      "source": "verified",
+      "aliases": []
+    },
+    "长城": {
+      "en": "Great Wall",
+      "source": "verified",
+      "aliases": [
+        "Great Wall of China"
+      ]
+    },
+    "北海公园": {
+      "en": "Beihai Park",
+      "source": "verified",
+      "aliases": []
+    },
+    "什刹海": {
+      "en": "Shichahai",
+      "source": "verified",
+      "aliases": []
+    },
+    "南锣鼓巷": {
+      "en": "Nanluoguxiang",
+      "source": "verified",
+      "aliases": []
+    },
+    "王府井": {
+      "en": "Wangfujing",
+      "source": "verified",
+      "aliases": []
+    },
+    "外滩": {
+      "en": "The Bund",
+      "source": "verified",
+      "aliases": [
+        "Bund"
+      ]
+    },
+    "豫园": {
+      "en": "Yu Garden",
+      "source": "verified",
+      "aliases": []
+    },
+    "田子坊": {
+      "en": "Tianzifang",
+      "source": "verified",
+      "aliases": []
+    },
+    "南京路": {
+      "en": "Nanjing Road",
+      "source": "verified",
+      "aliases": []
+    },
+    "城隍庙": {
+      "en": "City God Temple",
+      "source": "verified",
+      "aliases": []
+    },
+    "天津之眼": {
+      "en": "Tianjin Eye",
+      "source": "verified",
+      "aliases": []
+    },
+    "布达拉宫": {
+      "en": "Potala Palace",
+      "source": "verified",
+      "aliases": []
+    },
+    "大昭寺": {
+      "en": "Jokhang Temple",
+      "source": "verified",
+      "aliases": []
+    },
+    "灵隐寺": {
+      "en": "Lingyin Temple",
+      "source": "verified",
+      "aliases": []
+    },
+    "雷峰塔": {
+      "en": "Leifeng Pagoda",
+      "source": "verified",
+      "aliases": []
+    },
+    "千岛湖": {
+      "en": "Qiandao Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "拙政园": {
+      "en": "Humble Administrator's Garden",
+      "source": "verified",
+      "aliases": []
+    },
+    "留园": {
+      "en": "Lingering Garden",
+      "source": "verified",
+      "aliases": []
+    },
+    "虎丘": {
+      "en": "Tiger Hill",
+      "source": "verified",
+      "aliases": []
+    },
+    "平江路": {
+      "en": "Pingjiang Road",
+      "source": "verified",
+      "aliases": []
+    },
+    "周庄": {
+      "en": "Zhouzhuang",
+      "source": "verified",
+      "aliases": []
+    },
+    "乌镇": {
+      "en": "Wuzhen",
+      "source": "verified",
+      "aliases": []
+    },
+    "西塘": {
+      "en": "Xitang",
+      "source": "verified",
+      "aliases": []
+    },
+    "中山陵": {
+      "en": "Sun Yat-sen Mausoleum",
+      "source": "verified",
+      "aliases": []
+    },
+    "明孝陵": {
+      "en": "Ming Xiaoling Mausoleum",
+      "source": "verified",
+      "aliases": []
+    },
+    "夫子庙": {
+      "en": "Confucius Temple",
+      "source": "verified",
+      "aliases": []
+    },
+    "秦淮河": {
+      "en": "Qinhuai River",
+      "source": "verified",
+      "aliases": []
+    },
+    "泰山": {
+      "en": "Mount Tai",
+      "source": "verified",
+      "aliases": [
+        "Taishan"
+      ]
+    },
+    "崂山": {
+      "en": "Laoshan Mountain",
+      "source": "verified",
+      "aliases": []
+    },
+    "八大关": {
+      "en": "Badaguan",
+      "source": "verified",
+      "aliases": []
+    },
+    "鼓浪屿": {
+      "en": "Gulangyu Island",
+      "source": "verified",
+      "aliases": [
+        "Kulangsu"
+      ]
+    },
+    "南普陀寺": {
+      "en": "South Putuo Temple",
+      "source": "verified",
+      "aliases": []
+    },
+    "黄山": {
+      "en": "Mount Huangshan",
+      "source": "verified",
+      "aliases": [
+        "Yellow Mountain"
+      ]
+    },
+    "宏村": {
+      "en": "Hongcun",
+      "source": "verified",
+      "aliases": []
+    },
+    "九华山": {
+      "en": "Mount Jiuhua",
+      "source": "verified",
+      "aliases": []
+    },
+    "张家界国家森林公园": {
+      "en": "Zhangjiajie National Forest Park",
+      "source": "verified",
+      "aliases": []
+    },
+    "武陵源": {
+      "en": "Wulingyuan",
+      "source": "verified",
+      "aliases": []
+    },
+    "天门山": {
+      "en": "Tianmen Mountain",
+      "source": "verified",
+      "aliases": []
+    },
+    "凤凰古城": {
+      "en": "Fenghuang Ancient Town",
+      "source": "verified",
+      "aliases": []
+    },
+    "橘子洲": {
+      "en": "Orange Isle",
+      "source": "verified",
+      "aliases": [
+        "Juzizhou"
+      ]
+    },
+    "岳麓山": {
+      "en": "Yuelu Mountain",
+      "source": "verified",
+      "aliases": []
+    },
+    "岳麓书院": {
+      "en": "Yuelu Academy",
+      "source": "verified",
+      "aliases": []
+    },
+    "广州塔": {
+      "en": "Canton Tower",
+      "source": "verified",
+      "aliases": []
+    },
+    "沙面": {
+      "en": "Shamian Island",
+      "source": "verified",
+      "aliases": []
+    },
+    "陈家祠": {
+      "en": "Chen Clan Ancestral Hall",
+      "source": "verified",
+      "aliases": []
+    },
+    "世界之窗": {
+      "en": "Window of the World",
+      "source": "verified",
+      "aliases": []
+    },
+    "丹霞山": {
+      "en": "Mount Danxia",
+      "source": "verified",
+      "aliases": []
+    },
+    "开平碉楼": {
+      "en": "Kaiping Diaolou",
+      "source": "verified",
+      "aliases": []
+    },
+    "漓江": {
+      "en": "Li River",
+      "source": "verified",
+      "aliases": []
+    },
+    "象鼻山": {
+      "en": "Elephant Trunk Hill",
+      "source": "verified",
+      "aliases": []
+    },
+    "阳朔西街": {
+      "en": "West Street",
+      "source": "verified",
+      "aliases": []
+    },
+    "遇龙河": {
+      "en": "Yulong River",
+      "source": "verified",
+      "aliases": []
+    },
+    "大熊猫繁育研究基地": {
+      "en": "Chengdu Panda Base",
+      "source": "verified",
+      "aliases": [
+        "Chengdu Research Base of Giant Panda Breeding",
+        "Panda Base"
+      ]
+    },
+    "都江堰": {
+      "en": "Dujiangyan Irrigation System",
+      "source": "verified",
+      "aliases": [
+        "Dujiangyan"
+      ]
+    },
+    "青城山": {
+      "en": "Mount Qingcheng",
+      "source": "verified",
+      "aliases": []
+    },
+    "峨眉山": {
+      "en": "Mount Emei",
+      "source": "verified",
+      "aliases": [
+        "Emeishan"
+      ]
+    },
+    "乐山大佛": {
+      "en": "Leshan Giant Buddha",
+      "source": "verified",
+      "aliases": []
+    },
+    "九寨沟": {
+      "en": "Jiuzhaigou Valley",
+      "source": "verified",
+      "aliases": [
+        "Jiuzhaigou"
+      ]
+    },
+    "黄龙": {
+      "en": "Huanglong",
+      "source": "verified",
+      "aliases": []
+    },
+    "稻城亚丁": {
+      "en": "Daocheng Yading",
+      "source": "verified",
+      "aliases": []
+    },
+    "泸沽湖": {
+      "en": "Lugu Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "洱海": {
+      "en": "Erhai Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "崇圣寺三塔": {
+      "en": "Three Pagodas",
+      "source": "verified",
+      "aliases": []
+    },
+    "玉龙雪山": {
+      "en": "Jade Dragon Snow Mountain",
+      "source": "verified",
+      "aliases": []
+    },
+    "束河古镇": {
+      "en": "Shuhe Ancient Town",
+      "source": "verified",
+      "aliases": []
+    },
+    "大理古城": {
+      "en": "Dali Ancient Town",
+      "source": "verified",
+      "aliases": []
+    },
+    "石林": {
+      "en": "Stone Forest",
+      "source": "verified",
+      "aliases": []
+    },
+    "西双版纳": {
+      "en": "Xishuangbanna",
+      "source": "verified",
+      "aliases": []
+    },
+    "华山": {
+      "en": "Mount Hua",
+      "source": "verified",
+      "aliases": [
+        "Huashan"
+      ]
+    },
+    "大雁塔": {
+      "en": "Giant Wild Goose Pagoda",
+      "source": "verified",
+      "aliases": []
+    },
+    "小雁塔": {
+      "en": "Small Wild Goose Pagoda",
+      "source": "verified",
+      "aliases": []
+    },
+    "西安钟楼": {
+      "en": "Xi'an Bell Tower",
+      "source": "verified",
+      "aliases": []
+    },
+    "回民街": {
+      "en": "Muslim Quarter",
+      "source": "verified",
+      "aliases": [
+        "Muslim Street"
+      ]
+    },
+    "华清宫": {
+      "en": "Huaqing Palace",
+      "source": "verified",
+      "aliases": [
+        "Huaqing Pool"
+      ]
+    },
+    "法门寺": {
+      "en": "Famen Temple",
+      "source": "verified",
+      "aliases": []
+    },
+    "兵马俑": {
+      "en": "Terracotta Army",
+      "source": "verified",
+      "aliases": [
+        "Terracotta Warriors"
+      ]
+    },
+    "莫高窟": {
+      "en": "Mogao Caves",
+      "source": "verified",
+      "aliases": [
+        "Mogao Grottoes"
+      ]
+    },
+    "鸣沙山": {
+      "en": "Mingsha Mountain",
+      "source": "verified",
+      "aliases": [
+        "Singing Sand Dunes"
+      ]
+    },
+    "月牙泉": {
+      "en": "Crescent Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "嘉峪关": {
+      "en": "Jiayuguan Pass",
+      "source": "verified",
+      "aliases": []
+    },
+    "张掖丹霞": {
+      "en": "Zhangye Danxia",
+      "source": "verified",
+      "aliases": []
+    },
+    "青海湖": {
+      "en": "Qinghai Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "塔尔寺": {
+      "en": "Kumbum Monastery",
+      "source": "verified",
+      "aliases": []
+    },
+    "天山天池": {
+      "en": "Tianchi Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "喀纳斯": {
+      "en": "Kanas Lake",
+      "source": "verified",
+      "aliases": []
+    },
+    "火焰山": {
+      "en": "Flaming Mountains",
+      "source": "verified",
+      "aliases": []
+    },
+    "喀什老城": {
+      "en": "Kashgar Old Town",
+      "source": "verified",
+      "aliases": []
+    },
+    "平遥古城": {
+      "en": "Pingyao Ancient Town",
+      "source": "verified",
+      "aliases": []
+    },
+    "云冈石窟": {
+      "en": "Yungang Grottoes",
+      "source": "verified",
+      "aliases": []
+    },
+    "五台山": {
+      "en": "Mount Wutai",
+      "source": "verified",
+      "aliases": []
+    },
+    "晋祠": {
+      "en": "Jinci Temple",
+      "source": "verified",
+      "aliases": []
+    },
+    "承德避暑山庄": {
+      "en": "Chengde Mountain Resort",
+      "source": "verified",
+      "aliases": [
+        "Chengde Summer Resort"
+      ]
+    },
+    "成吉思汗陵": {
+      "en": "Mausoleum of Genghis Khan",
+      "source": "verified",
+      "aliases": []
+    },
+    "呼伦贝尔草原": {
+      "en": "Hulunbuir Grassland",
+      "source": "verified",
+      "aliases": []
+    },
+    "长白山": {
+      "en": "Changbai Mountain",
+      "source": "verified",
+      "aliases": []
+    },
+    "中央大街": {
+      "en": "Central Street",
+      "source": "verified",
+      "aliases": []
+    },
+    "圣索菲亚教堂": {
+      "en": "Saint Sophia Cathedral",
+      "source": "verified",
+      "aliases": []
+    },
+    "黄果树瀑布": {
+      "en": "Huangguoshu Waterfall",
+      "source": "verified",
+      "aliases": []
+    },
+    "亚龙湾": {
+      "en": "Yalong Bay",
+      "source": "verified",
+      "aliases": []
+    },
+    "天涯海角": {
+      "en": "Tianya Haijiao",
+      "source": "verified",
+      "aliases": []
+    },
+    "蜈支洲岛": {
+      "en": "Wuzhizhou Island",
+      "source": "verified",
+      "aliases": []
+    },
+    "庐山": {
+      "en": "Mount Lu",
+      "source": "verified",
+      "aliases": [
+        "Lushan"
+      ]
+    },
+    "滕王阁": {
+      "en": "Pavilion of Prince Teng",
+      "source": "verified",
+      "aliases": [
+        "Tengwang Pavilion"
+      ]
+    },
+    "三清山": {
+      "en": "Mount Sanqing",
+      "source": "verified",
+      "aliases": []
+    },
+    "婺源": {
+      "en": "Wuyuan",
+      "source": "verified",
+      "aliases": []
+    },
+    "武夷山": {
+      "en": "Mount Wuyi",
+      "source": "verified",
+      "aliases": []
+    },
+    "普陀山": {
+      "en": "Mount Putuo",
+      "source": "verified",
+      "aliases": []
+    },
+    "雁荡山": {
+      "en": "Yandang Mountain",
+      "source": "verified",
+      "aliases": []
+    },
+    "武当山": {
+      "en": "Wudang Mountain",
+      "source": "verified",
+      "aliases": []
+    },
+    "神农架": {
+      "en": "Shennongjia",
+      "source": "verified",
+      "aliases": []
+    },
+    "恩施大峡谷": {
+      "en": "Enshi Grand Canyon",
+      "source": "verified",
+      "aliases": []
+    },
+    "三峡大坝": {
+      "en": "Three Gorges Dam",
+      "source": "verified",
+      "aliases": []
+    },
+    "黄鹤楼": {
+      "en": "Yellow Crane Tower",
+      "source": "verified",
+      "aliases": []
+    },
+    "武侯祠": {
+      "en": "Wuhou Shrine",
+      "source": "verified",
+      "aliases": [
+        "Wuhou Memorial Temple"
+      ]
+    },
+    "宽窄巷子": {
+      "en": "Kuanzhai Alley",
+      "source": "verified",
+      "aliases": []
+    }
+  },
+  "dishes": {
+    "麻婆豆腐": {
+      "en": "Mapo Tofu",
+      "source": "verified",
+      "aliases": []
+    },
+    "回锅肉": {
+      "en": "Twice-Cooked Pork",
+      "source": "verified",
+      "aliases": [
+        "Twice Cooked Pork"
+      ]
+    },
+    "夫妻肺片": {
+      "en": "Couple's Delight",
+      "source": "verified",
+      "aliases": [
+        "Fuqi Feipian"
+      ]
+    },
+    "担担面": {
+      "en": "Dan Dan Noodles",
+      "source": "verified",
+      "aliases": [
+        "Dandan Noodles"
+      ]
+    },
+    "龙抄手": {
+      "en": "Long Chao Shou",
+      "source": "verified",
+      "aliases": []
+    },
+    "钟水饺": {
+      "en": "Zhong Dumplings",
+      "source": "verified",
+      "aliases": []
+    },
+    "串串香": {
+      "en": "Skewer Hot Pot",
+      "source": "verified",
+      "aliases": []
+    },
+    "兔头": {
+      "en": "Rabbit Head",
+      "source": "verified",
+      "aliases": []
+    },
+    "甜水面": {
+      "en": "Sweet Water Noodles",
+      "source": "verified",
+      "aliases": []
+    },
+    "蛋烘糕": {
+      "en": "Egg Pancake",
+      "source": "verified",
+      "aliases": []
+    },
+    "宫保鸡丁": {
+      "en": "Kung Pao Chicken",
+      "source": "verified",
+      "aliases": [
+        "Gongbao Jiding"
+      ]
+    },
+    "鱼香肉丝": {
+      "en": "Fish-Fragrant Shredded Pork",
+      "source": "verified",
+      "aliases": [
+        "Yu Xiang Rou Si"
+      ]
+    },
+    "水煮鱼": {
+      "en": "Sichuan Boiled Fish",
+      "source": "verified",
+      "aliases": [
+        "Shui Zhu Yu"
+      ]
+    },
+    "口水鸡": {
+      "en": "Mouth-Watering Chicken",
+      "source": "verified",
+      "aliases": [
+        "Kou Shui Ji"
+      ]
+    },
+    "北京烤鸭": {
+      "en": "Peking Duck",
+      "source": "verified",
+      "aliases": [
+        "Beijing Roast Duck"
+      ]
+    },
+    "炸酱面": {
+      "en": "Zhajiang Noodles",
+      "source": "verified",
+      "aliases": [
+        "Zha Jiang Mian"
+      ]
+    },
+    "小笼包": {
+      "en": "Soup Dumplings",
+      "source": "verified",
+      "aliases": [
+        "Xiaolongbao"
+      ]
+    },
+    "生煎包": {
+      "en": "Pan-Fried Pork Buns",
+      "source": "verified",
+      "aliases": [
+        "Shengjian Bao"
+      ]
+    },
+    "红烧肉": {
+      "en": "Braised Pork Belly",
+      "source": "verified",
+      "aliases": [
+        "Hong Shao Rou"
+      ]
+    },
+    "东坡肉": {
+      "en": "Dongpo Pork",
+      "source": "verified",
+      "aliases": []
+    },
+    "糖醋里脊": {
+      "en": "Sweet and Sour Pork",
+      "source": "verified",
+      "aliases": []
+    },
+    "佛跳墙": {
+      "en": "Buddha Jumps Over the Wall",
+      "source": "verified",
+      "aliases": []
+    },
+    "兰州拉面": {
+      "en": "Lanzhou Beef Noodles",
+      "source": "verified",
+      "aliases": [
+        "Lanzhou Lamian"
+      ]
+    },
+    "羊肉泡馍": {
+      "en": "Yangrou Paomo",
+      "source": "verified",
+      "aliases": [
+        "Mutton Soup with Bread"
+      ]
+    },
+    "肉夹馍": {
+      "en": "Roujiamo",
+      "source": "verified",
+      "aliases": [
+        "Chinese Hamburger"
+      ]
+    },
+    "凉皮": {
+      "en": "Liangpi",
+      "source": "verified",
+      "aliases": [
+        "Cold Skin Noodles"
+      ]
+    },
+    "过桥米线": {
+      "en": "Crossing-the-Bridge Rice Noodles",
+      "source": "verified",
+      "aliases": [
+        "Guoqiao Mixian"
+      ]
+    },
+    "汽锅鸡": {
+      "en": "Steam Pot Chicken",
+      "source": "verified",
+      "aliases": []
+    },
+    "重庆小面": {
+      "en": "Chongqing Small Noodles",
+      "source": "verified",
+      "aliases": [
+        "Chongqing Xiaomian"
+      ]
+    },
+    "酸辣粉": {
+      "en": "Hot and Sour Rice Noodles",
+      "source": "verified",
+      "aliases": [
+        "Suan La Fen"
+      ]
+    },
+    "毛血旺": {
+      "en": "Mao Xue Wang",
+      "source": "verified",
+      "aliases": []
+    },
+    "煎饼果子": {
+      "en": "Jianbing",
+      "source": "verified",
+      "aliases": [
+        "Jianbing Guozi",
+        "Chinese Crepe"
+      ]
+    },
+    "狗不理包子": {
+      "en": "Goubuli Baozi",
+      "source": "verified",
+      "aliases": []
+    },
+    "扬州炒饭": {
+      "en": "Yangzhou Fried Rice",
+      "source": "verified",
+      "aliases": []
+    },
+    "松鼠鳜鱼": {
+      "en": "Squirrel Fish",
+      "source": "verified",
+      "aliases": []
+    },
+    "盐水鸭": {
+      "en": "Salted Duck",
+      "source": "verified",
+      "aliases": []
+    },
+    "鸭血粉丝汤": {
+      "en": "Duck Blood Vermicelli Soup",
+      "source": "verified",
+      "aliases": []
+    },
+    "剁椒鱼头": {
+      "en": "Steamed Fish Head with Chopped Chili",
+      "source": "verified",
+      "aliases": []
+    },
+    "臭豆腐": {
+      "en": "Stinky Tofu",
+      "source": "verified",
+      "aliases": []
+    },
+    "小龙虾": {
+      "en": "Crayfish",
+      "source": "verified",
+      "aliases": []
+    },
+    "螺蛳粉": {
+      "en": "Luosifen",
+      "source": "verified",
+      "aliases": [
+        "Snail Rice Noodles"
+      ]
+    },
+    "桂林米粉": {
+      "en": "Guilin Rice Noodles",
+      "source": "verified",
+      "aliases": []
+    },
+    "海南鸡饭": {
+      "en": "Hainanese Chicken Rice",
+      "source": "verified",
+      "aliases": []
+    },
+    "文昌鸡": {
+      "en": "Wenchang Chicken",
+      "source": "verified",
+      "aliases": []
+    },
+    "肠粉": {
+      "en": "Rice Noodle Roll",
+      "source": "verified",
+      "aliases": [
+        "Changfen"
+      ]
+    },
+    "虾饺": {
+      "en": "Shrimp Dumpling",
+      "source": "verified",
+      "aliases": [
+        "Har Gow"
+      ]
+    },
+    "叉烧": {
+      "en": "Char Siu",
+      "source": "verified",
+      "aliases": [
+        "Cantonese BBQ Pork"
+      ]
+    },
+    "白切鸡": {
+      "en": "White Cut Chicken",
+      "source": "verified",
+      "aliases": []
+    },
+    "云吞面": {
+      "en": "Wonton Noodles",
+      "source": "verified",
+      "aliases": []
+    },
+    "干炒牛河": {
+      "en": "Beef Chow Fun",
+      "source": "verified",
+      "aliases": []
+    },
+    "煲仔饭": {
+      "en": "Claypot Rice",
+      "source": "verified",
+      "aliases": []
+    },
+    "双皮奶": {
+      "en": "Double Skin Milk",
+      "source": "verified",
+      "aliases": []
+    },
+    "刀削面": {
+      "en": "Knife-Cut Noodles",
+      "source": "verified",
+      "aliases": [
+        "Daoxiaomian"
+      ]
+    },
+    "大盘鸡": {
+      "en": "Big Plate Chicken",
+      "source": "verified",
+      "aliases": [
+        "Dapanji"
+      ]
+    },
+    "烤羊肉串": {
+      "en": "Lamb Skewers",
+      "source": "verified",
+      "aliases": []
+    },
+    "馕": {
+      "en": "Naan",
+      "source": "verified",
+      "aliases": []
+    },
+    "烤包子": {
+      "en": "Samsa",
+      "source": "verified",
+      "aliases": []
+    },
+    "糌粑": {
+      "en": "Tsampa",
+      "source": "verified",
+      "aliases": []
+    },
+    "酥油茶": {
+      "en": "Butter Tea",
+      "source": "verified",
+      "aliases": []
+    },
+    "葱油饼": {
+      "en": "Scallion Pancake",
+      "source": "verified",
+      "aliases": []
+    },
+    "蛋炒饭": {
+      "en": "Egg Fried Rice",
+      "source": "verified",
+      "aliases": []
+    },
+    "饺子": {
+      "en": "Dumplings",
+      "source": "verified",
+      "aliases": [
+        "Jiaozi"
+      ]
+    },
+    "火锅": {
+      "en": "Hot Pot",
+      "source": "verified",
+      "aliases": [
+        "Huoguo"
+      ]
+    },
+    "烧烤": {
+      "en": "Barbecue",
+      "source": "verified",
+      "aliases": [
+        "BBQ"
+      ]
+    }
+  },
+  "provinces": {
+    "北京": "Beijing",
+    "上海": "Shanghai",
+    "天津": "Tianjin",
+    "重庆": "Chongqing",
+    "河北": "Hebei",
+    "山西": "Shanxi",
+    "内蒙古": "Inner Mongolia",
+    "辽宁": "Liaoning",
+    "吉林": "Jilin",
+    "黑龙江": "Heilongjiang",
+    "江苏": "Jiangsu",
+    "浙江": "Zhejiang",
+    "安徽": "Anhui",
+    "福建": "Fujian",
+    "江西": "Jiangxi",
+    "山东": "Shandong",
+    "河南": "Henan",
+    "湖北": "Hubei",
+    "湖南": "Hunan",
+    "广东": "Guangdong",
+    "广西": "Guangxi",
+    "海南": "Hainan",
+    "四川": "Sichuan",
+    "贵州": "Guizhou",
+    "云南": "Yunnan",
+    "西藏": "Tibet",
+    "陕西": "Shaanxi",
+    "甘肃": "Gansu",
+    "青海": "Qinghai",
+    "宁夏": "Ningxia",
+    "新疆": "Xinjiang",
+    "香港": "Hong Kong",
+    "澳门": "Macau",
+    "台湾": "Taiwan"
+  },
+  "weather_codes": {
+    "晴": "SUNNY",
+    "少云": "CLOUDY",
+    "多云": "CLOUDY",
+    "晴间多云": "CLOUDY",
+    "局部多云": "CLOUDY",
+    "阴": "OVERCAST",
+    "小雨": "LIGHT_RAIN",
+    "中雨": "MODERATE_RAIN",
+    "大雨": "HEAVY_RAIN",
+    "暴雨": "HEAVY_RAIN",
+    "大暴雨": "HEAVY_RAIN",
+    "特大暴雨": "HEAVY_RAIN",
+    "阵雨": "LIGHT_RAIN",
+    "强阵雨": "MODERATE_RAIN",
+    "雷阵雨": "THUNDERSTORM",
+    "雷雨": "THUNDERSTORM",
+    "雷阵雨伴有冰雹": "THUNDERSTORM",
+    "小雪": "SNOW",
+    "中雪": "SNOW",
+    "大雪": "SNOW",
+    "暴雪": "SNOW",
+    "雪": "SNOW",
+    "阵雪": "SNOW",
+    "雨夹雪": "SLEET",
+    "阵雨夹雪": "SLEET",
+    "冻雨": "SLEET",
+    "雾": "FOG",
+    "浓雾": "FOG",
+    "强浓雾": "FOG",
+    "霾": "HAZE",
+    "中度霾": "HAZE",
+    "重度霾": "HAZE",
+    "严重霾": "HAZE",
+    "浮尘": "HAZE",
+    "扬沙": "HAZE",
+    "沙尘暴": "HAZE",
+    "风": "WINDY",
+    "大风": "WINDY",
+    "强风": "WINDY",
+    "疾风": "WINDY",
+    "狂风": "WINDY",
+    "龙卷风": "WINDY",
+    "热带风暴": "WINDY",
+    "台风": "WINDY"
+  },
+  "tag_en": {
+    "风景名胜": "Scenic spot",
+    "公园广场": "Park & plaza",
+    "寺庙道观": "Temple",
+    "博物馆": "Museum",
+    "餐饮服务": "Dining",
+    "中餐厅": "Chinese restaurant",
+    "火锅店": "Hot pot restaurant",
+    "川菜馆": "Sichuan restaurant",
+    "粤菜馆": "Cantonese restaurant",
+    "小吃快餐": "Snack & fast food",
+    "商务住宅": "Business & residential",
+    "楼宇": "Building",
+    "商务写字楼": "Office building",
+    "购物中心": "Shopping mall",
+    "超级市场": "Supermarket",
+    "便利店": "Convenience store",
+    "咖啡厅": "Cafe",
+    "茶馆": "Teahouse",
+    "酒吧": "Bar",
+    "电影院": "Cinema",
+    "剧院": "Theater",
+    "住宿服务": "Accommodation",
+    "星级酒店": "Star-rated hotel",
+    "经济型酒店": "Budget hotel",
+    "民宿": "Guesthouse",
+    "景点": "Attraction",
+    "公园": "Park",
+    "动物园": "Zoo",
+    "植物园": "Botanical garden",
+    "水族馆": "Aquarium",
+    "游乐园": "Amusement park",
+    "体育场馆": "Sports venue",
+    "健身中心": "Fitness center",
+    "医院": "Hospital",
+    "药店": "Pharmacy",
+    "银行": "Bank",
+    "自动取款机": "ATM",
+    "停车场": "Parking lot",
+    "加油站": "Petrol station",
+    "地铁站": "Subway station",
+    "公交车站": "Bus stop",
+    "火车站": "Railway station",
+    "机场": "Airport",
+    "长途汽车站": "Coach station",
+    "高等院校": "University",
+    "图书馆": "Library",
+    "科技馆": "Science museum",
+    "美术馆": "Art gallery",
+    "展览馆": "Exhibition hall",
+    "教堂": "Church",
+    "清真寺": "Mosque",
+    "道观": "Taoist temple",
+    "城市广场": "City square",
+    "步行街": "Pedestrian street",
+    "夜市": "Night market",
+    "温泉": "Spa",
+    "滑雪场": "Ski resort",
+    "高尔夫球场": "Golf course",
+    "海滩": "Beach",
+    "湖泊": "Lake",
+    "国家级景点": "National-level scenic spot",
+    "省级景点": "Provincial-level scenic spot",
+    "世界遗产": "World heritage site",
+    "风景名胜相关": "Scenic site",
+    "旅游景点": "Tourist attraction",
+    "科教文化服务": "Education & culture",
+    "地名地址信息": "Place & address",
+    "购物服务": "Shopping",
+    "休闲体育服务": "Leisure & sports"
+  }
+}

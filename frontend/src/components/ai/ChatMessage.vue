@@ -2,6 +2,7 @@
   <!--
     §25.3 纯展示:0 个业务函数,只有 user / assistant 两种气泡。
     安全文本渲染(不使用 v-html),前端不展示任何内部 payload / 思维链(§43)。
+    `message.content` 是历史原文,原样渲染 —— 切换语言不翻译、不覆盖(§8.2)。
   -->
   <article
     class="tm-chat-message"
@@ -9,24 +10,28 @@
   >
     <p class="tm-chat-message-bubble">{{ message.content }}</p>
 
-    <p v-if="message.pending" class="tm-chat-message-state">发送中…</p>
+    <p v-if="message.pending" class="tm-chat-message-state">{{ t('chat.pending') }}</p>
     <button
       v-else-if="message.failed"
       type="button"
       class="tm-chat-message-retry"
       @click="$emit('retry', message)"
     >
-      发送失败,点击重试
+      {{ t('chat.send_failed_retry') }}
     </button>
   </article>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
 defineProps({
   message: { type: Object, required: true },
 })
 
 defineEmits(['retry'])
+
+const { t } = useI18n()
 </script>
 
 <style scoped>

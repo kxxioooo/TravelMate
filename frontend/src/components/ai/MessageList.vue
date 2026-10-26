@@ -1,9 +1,10 @@
 <template>
   <div ref="listRef" class="tm-message-list">
     <p v-if="!messages.length" class="tm-message-list-empty">
-      这个会话还没有消息,直接说出你的旅行想法吧。
+      {{ t('chat.no_messages') }}
     </p>
 
+    <!-- 历史消息的 content 原样渲染:切换语言不翻译、不覆盖(规格 §8.2) -->
     <ChatMessage
       v-for="message in messages"
       :key="message.id"
@@ -15,6 +16,7 @@
 
 <script setup>
 import { nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChatMessage from './ChatMessage.vue'
 
@@ -23,6 +25,8 @@ const props = defineProps({
 })
 
 defineEmits(['retry'])
+
+const { t } = useI18n()
 
 const listRef = ref(null)
 

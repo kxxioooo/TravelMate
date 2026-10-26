@@ -1,25 +1,33 @@
 <template>
   <div class="tm-empty-state">
     <el-icon class="tm-empty-state-icon"><Compass /></el-icon>
-    <p class="tm-empty-state-title">{{ displayOrUnknown(title) }}</p>
+    <p class="tm-empty-state-title">{{ titleText }}</p>
     <p v-if="description" class="tm-empty-state-desc">{{ description }}</p>
   </div>
 </template>
 
 <script setup>
 import { Compass } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import { displayOrUnknown } from '../../utils/display'
+import { formatLocalizedUnknown } from '../../utils/i18nDisplay'
 
 /**
  * 通用空状态。
  *
  * 纯展示组件:景点无结果、餐厅无结果、API 返回空数组时复用。
+ * 标题 / 描述由父组件传入(已经是当前语言的文案);
+ * 万一传空,用当前语言的"暂无信息"兜底,不会渲染 undefined。
  */
-defineProps({
+const props = defineProps({
   title: { type: String, default: '' },
   description: { type: String, default: '' },
 })
+
+const { t } = useI18n()
+
+const titleText = computed(() => formatLocalizedUnknown(props.title, t))
 </script>
 
 <style scoped>

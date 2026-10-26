@@ -2,11 +2,19 @@
 
 高德的缺失值可能是空数组 `[]` / 空字符串,统一在 attraction_service 的
 map_poi_to_summary / map_poi_to_detail 里归一化成 None(§36:没有就暂无信息)。
+
+v0.3.1(契约 §2)只做**追加**:`name_en` / `address_en` / `tags_en` 及来源标记。
+- 老字段一个都不删、语义不变;
+- 新字段为 None 时通过 `exclude_if` 不参与序列化 -> 不带 locale 的老客户端
+  拿到的响应与 v0.3 一模一样;
+- `poi_id` / `location` / `rating` / `cost` / `photos` 永远不被翻译或改写。
 """
 
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+from app.schemas.localization import FieldSource, exclude_when_none
 
 
 class PhotoItem(BaseModel):
@@ -24,6 +32,9 @@ class AttractionSummary(BaseModel):
     cover_photo: Optional[str] = None
     rating: Optional[float] = None
     tags: list[str] = Field(default_factory=list)
+    # --- v0.3.1 双语展示字段(可选,向后兼容) ---
+    name_en: Optional[str] = Field(default=None, exclude_if=exclude_when_none)
+    name_en_source: Optional[FieldSource] = Field(default=None, exclude_if=exclude_when_none)
 
 
 class AttractionLocation(BaseModel):
@@ -43,6 +54,12 @@ class AttractionDetail(BaseModel):
     cost: Optional[str] = None
     tags: list[str] = Field(default_factory=list)
     location: Optional[AttractionLocation] = None
+    # --- v0.3.1 双语展示字段(可选,向后兼容) ---
+    name_en: Optional[str] = Field(default=None, exclude_if=exclude_when_none)
+    name_en_source: Optional[FieldSource] = Field(default=None, exclude_if=exclude_when_none)
+    address_en: Optional[str] = Field(default=None, exclude_if=exclude_when_none)
+    address_en_source: Optional[FieldSource] = Field(default=None, exclude_if=exclude_when_none)
+    tags_en: Optional[list[str]] = Field(default=None, exclude_if=exclude_when_none)
 
 
 class PagedAttractionResponse(BaseModel):

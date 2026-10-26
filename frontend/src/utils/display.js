@@ -1,47 +1,32 @@
+import { formatLocalizedUnknown } from './i18nDisplay'
+
 /**
- * 展示层兜底工具(v0.2 新增)。
+ * 展示层兜底工具。
  *
  * v0.2 的景点 / 美食 / 餐厅数据全部来自第三方 API,任何字段都可能为
- * null、undefined、空字符串或空数组。这里统一把"没有数据"翻译成
+ * null、undefined、空字符串或空数组。这里统一把"没有数据"翻译成当前语言的
  * "暂无信息",保证:
- *   1. 页面在 API 异常时不会崩(§40 验收标准);
+ *   1. 页面在 API 异常时不会崩;
  *   2. 界面上永远不会出现 undefined / [object Object] 这类脏文本;
- *   3. 绝不替 API 编造价格、评分、地址、电话(§36 缺失数据规则)。
+ *   3. 绝不替 API 编造价格、评分、地址、电话。
+ *
+ * v0.3.1:缺失文案不再硬编码,统一委托 `utils/i18nDisplay.js` 的
+ * `formatLocalizedUnknown()`(跟随当前 locale,无需调用方传参)。
  */
 
-/** 缺失数据的统一文案。 */
-export const UNKNOWN_TEXT = '暂无信息'
+/** 缺失数据的统一文案(当前语言)。 */
+export function unknownText() {
+  return formatLocalizedUnknown(null)
+}
 
 /**
  * 把任意 API 值转成可安全渲染的文本。
  *
- * null / undefined / "" / [] 统一输出 "暂无信息"。
+ * null / undefined / "" / [] 统一输出当前语言的 "暂无信息",
+ * 数组按语言习惯拼接(中文顿号 / 英文逗号)。
  */
 export function displayOrUnknown(value) {
-  if (Array.isArray(value)) {
-    const parts = value.map((item) => displayOrUnknown(item)).filter((text) => text !== UNKNOWN_TEXT)
-    return parts.length ? parts.join('、') : UNKNOWN_TEXT
-  }
-
-  if (value === null || value === undefined) {
-    return UNKNOWN_TEXT
-  }
-
-  if (typeof value === 'string') {
-    const text = value.trim()
-    return text || UNKNOWN_TEXT
-  }
-
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? String(value) : UNKNOWN_TEXT
-  }
-
-  if (typeof value === 'boolean') {
-    return value ? '是' : '否'
-  }
-
-  // 对象没有可以直接展示的语义,一律当成缺失,避免渲染 [object Object]。
-  return UNKNOWN_TEXT
+  return formatLocalizedUnknown(value)
 }
 
 /**
@@ -49,22 +34,22 @@ export function displayOrUnknown(value) {
  *
  * - 数字或纯数字字符串 -> "¥xx"
  * - 非空文本(例如高德返回的"免费")-> 原文照显,符合"API 有值就显示"
- * - 其余 -> "暂无信息"
+ * - 其余 -> 当前语言的 "暂无信息"
  *
  * 刻意不做任何货币换算或猜测。
  */
 export function formatPrice(value) {
   if (value === null || value === undefined || Array.isArray(value)) {
-    return UNKNOWN_TEXT
+    return displayOrUnknown(null)
   }
 
   if (typeof value === 'boolean') {
-    return UNKNOWN_TEXT
+    return displayOrUnknown(null)
   }
 
   const text = String(value).trim()
   if (!text) {
-    return UNKNOWN_TEXT
+    return displayOrUnknown(null)
   }
 
   const numeric = Number(text)

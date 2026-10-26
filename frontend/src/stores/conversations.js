@@ -7,13 +7,19 @@ import {
   listConversations,
   updateConversationCities,
 } from '../api/conversations'
+import { toErrorInfo } from '../api/http'
+import { translate } from '../i18n'
+import { formatLocalizedError } from '../utils/i18nDisplay'
 import { useChatStore } from './chat'
 
 /**
- * 读取统一的失败文案(api/http.js 的拦截器已经把 detail 归一化)。
+ * 读取统一的失败文案。
+ *
+ * v0.3.1:错误按"error_code 映射 > 后端 detail > 状态码 > 场景兜底 key"解析,
+ * 且每次弹提示时用**当时**的语言翻译(不缓存已经翻译好的句子)。
  */
-function resolveErrorMessage(error, fallback) {
-  return error?.normalized?.message ?? error?.message ?? fallback
+function resolveErrorMessage(error, fallbackKey) {
+  return formatLocalizedError(toErrorInfo(error), { fallbackKey })
 }
 
 /**
@@ -93,7 +99,7 @@ export const useConversationStore = defineStore('conversations', {
       } catch (error) {
         // 拿不到列表时宁可为空,也不留下上一个账号/上一次请求的残影。
         this.items = []
-        ElMessage.error(resolveErrorMessage(error, '会话列表加载失败'))
+        ElMessage.error(resolveErrorMessage(error, 'conversation.list_load_failed'))
         return []
       } finally {
         this.isLoading = false
@@ -114,7 +120,7 @@ export const useConversationStore = defineStore('conversations', {
         const conversation = normalizeConversation(data)
 
         if (!conversation) {
-          ElMessage.error('创建会话返回数据异常,请稍后重试')
+          ElMessage.error(translate('conversation.create_invalid'))
           return null
         }
 
@@ -124,7 +130,7 @@ export const useConversationStore = defineStore('conversations', {
 
         return conversation
       } catch (error) {
-        ElMessage.error(resolveErrorMessage(error, '创建会话失败,请稍后重试'))
+        ElMessage.error(resolveErrorMessage(error, 'conversation.create_failed'))
         return null
       } finally {
         this.isLoading = false
@@ -149,7 +155,7 @@ export const useConversationStore = defineStore('conversations', {
         const conversation = normalizeConversation(data)
 
         if (!conversation) {
-          ElMessage.error('会话详情返回数据异常,请稍后重试')
+          ElMessage.error(translate('conversation.detail_invalid'))
           return null
         }
 
@@ -159,7 +165,7 @@ export const useConversationStore = defineStore('conversations', {
 
         return conversation
       } catch (error) {
-        ElMessage.error(resolveErrorMessage(error, '会话打开失败,请稍后重试'))
+        ElMessage.error(resolveErrorMessage(error, 'conversation.open_failed'))
         return null
       } finally {
         this.isLoading = false
@@ -196,7 +202,7 @@ export const useConversationStore = defineStore('conversations', {
 
         return conversation
       } catch (error) {
-        ElMessage.error(resolveErrorMessage(error, '会话城市更新失败,请稍后重试'))
+        ElMessage.error(resolveErrorMessage(error, 'conversation.update_cities_failed'))
         // 回滚到修改前的城市,避免界面显示一个后端并不认可的状态。
         this.activeConversation = active
         return null

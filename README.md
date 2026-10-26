@@ -1,13 +1,32 @@
-# TravelMate AI — v0.3
+# TravelMate AI — v0.3.1
 
 **v0.1 骨架**:账户系统 + 用户偏好 + 基础 Web Shell + 本地城市搜索 + MySQL 持久化。
 **v0.2 城市旅游信息**:城市搜索历史 + 高德实时天气/穿衣建议 + 景点 + 美食 + 可拖动双栏布局。
 **v0.3 完整 AI Travel Agent**:DeepSeek Chat + 多 Conversation + 多城市 + 会话隔离 + Tool Calling + Agent Activity。
+**v0.3.1 中英双语国际化**:全站 `中文 / English` 切换 + 双语实体展示 + 英文搜索转中文查真实 POI + 翻译缓存。
 
-v0.3 仍**不做** LangChain / Milvus / RAG —— 留给 v0.4。
+v0.3.1 仍**不做** LangChain / Milvus / RAG —— 留给 v0.4。
 
-核心文件 **114 个**(v0.2 的 88 + v0.3 新增 28 − 删除 2):根配置 2 + 前端 59 + 后端 53
+核心文件 **131 个**(v0.3 的 114 + v0.3.1 新增 16 + 国际词典数据文件 1):根配置 2 + 前端 67 + 后端 62
 (空 `__init__.py`、lock 文件不计入)。
+
+---
+
+## v0.3.1 新增能力(中英双语)
+
+| 能力 | 实现要点 |
+|---|---|
+| 语言切换 | 顶部右侧 `中文 \| English`(未登录页固定在右上角);**即时切换、刷新保持、不重置**当前城市 / Tab / Splitter / 会话 / 消息 |
+| 全站文案 i18n | `vue-i18n` + `el-config-provider`;**zh-CN 与 en-US 的 key 完全一致**(16 个命名空间);英文模式零未授权中文 |
+| 城市双语 | 168 个城市补齐 `city_name_en` / `province_en` / `pinyin_initials` / `aliases_en`;中英文、拼音、首字母、异写都能搜到同一城市,展示为 `Chengdu (成都)` |
+| 英文搜索真查高德 | `ancient town` → 词典/翻译解析成 `古镇` → 用**中文关键词 + 原 `types`** 查高德;查不到就返回受控 422 `query.unrecognized`,**绝不悄悄退回默认 Top10** |
+| POI 双语 | 名称/地址/标签带 `*_en` 与 `*_source`(`verified`/`model`/`transliterated`/`fallback`);`poi_id`、经纬度、评分、价格、电话、图片**永不被翻译或改写** |
+| 翻译缓存 | MySQL `entity_translations`,`UNIQUE(provider, entity_key, field_name, target_locale, source_hash, translation_version)`;原文变则 hash 变、自动失效 |
+| 天气/穿衣 codes | 后端返回 `weather_code` 与 `clothing_advice_codes`(枚举),前端按语言渲染;数字原值不动 |
+| Activity codes | `code` + `params`(如 `agent.weather_found` + `{city_name}`),前端按语言渲染;`text` 保留做兼容 |
+| Agent 按语言生成 | 中/英分别组系统提示词;英文回答自然英文,专有名词用 `English (中文)`;**历史消息永不改写** |
+
+**两条红线**:①拿不到可信英文名时明确降级(`fallback`),**不编造官方译名**;②`poi_id` / `adcode` / `conversation_id` / Tool 名等业务标识**不本地化**。
 
 ---
 
@@ -156,7 +175,7 @@ python -m pytest tests -q
 
 11 个测试(认证 6 + 偏好 5)全部跑在内存 SQLite 上,不需要 MySQL。
 
-v0.3 后共 **54 个测试**(v0.2 的 33 + Conversation 7 + Chat 6 + Agent Tool 8)。DeepSeek 与高德全部 mock,不消耗真实 API quota。
+v0.3.1 后共 **79 个测试**(v0.3 的 54 + 国际化 25)。DeepSeek 与高德全部 mock,不消耗真实 API quota。
 
 ---
 
@@ -196,6 +215,12 @@ Cookie: HttpOnly=true, SameSite=Lax, Secure=(APP_ENV=="production")
 | GET | `/conversations/{id}/messages` | 是 | 会话历史消息(仅 user/assistant) |
 | POST | `/conversations/{id}/messages` | 是 | 发消息 → `{user_message, assistant_message, activities[]}` |
 | GET | `/health` | 否 | 健康检查 |
+
+**v0.3.1 国际化约定**:所有接口都接受 `Accept-Language: zh-CN | en-US`(默认 `zh-CN`),
+`POST /conversations/{id}/messages` 还可显式传 body `locale`(优先级最高)。
+响应在保留原有中文字段的前提下**追加**双语字段与机器可读 code:
+`name_en`/`address_en`/`tags_en` + `*_source`、`weather_code`、`clothing_advice_codes`、`activities[].code`/`params`、
+以及错误体的 `error_code`。老客户端不带该头时行为与 v0.3 完全一致。
 
 外部 API 备注:高德个人 Key 有 **QPS 限制**,连续快速请求会返回 `status=0`(看起来像"无数据");
 `amap_client` 已内置退避重试,`food/featured` 的 10 路查询用 `Semaphore(3)` + 间隔控流。

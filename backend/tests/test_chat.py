@@ -132,10 +132,23 @@ def test_send_message_persists_user_and_assistant(monkeypatch, client_fixture, u
     assert body["assistant_message"]["content"] == "成都今天多云,18℃,建议薄外套,适合自然风景的一日行程。"
     assert body["assistant_message"]["id"] > body["user_message"]["id"]
 
-    # Activity 只来自真实执行过的两个工具,顺序与调用顺序一致
+    # Activity 只来自真实执行过的两个工具,顺序与调用顺序一致。
+    # v0.3.1(契约 §4):每项新增机器可读 code + params(原始中文/ID),text 保留兼容。
     assert body["activities"] == [
-        {"type": "preference", "status": "success", "text": "已读取旅行偏好"},
-        {"type": "weather", "status": "success", "text": "已查询成都天气"},
+        {
+            "type": "preference",
+            "status": "success",
+            "code": "agent.preferences_read",
+            "params": {},
+            "text": "已读取旅行偏好",
+        },
+        {
+            "type": "weather",
+            "status": "success",
+            "code": "agent.weather_found",
+            "params": {"city_name": "成都", "city_adcode": "510100"},
+            "text": "已查询成都天气",
+        },
     ]
     assert weather_calls == ["510100"]
 

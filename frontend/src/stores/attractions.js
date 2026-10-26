@@ -1,17 +1,13 @@
 import { defineStore } from 'pinia'
 
 import { getAttractionDetail, getAttractions } from '../api/attractions'
+import { toErrorInfo } from '../api/http'
 
 /** 默认推荐景点数量(§1 第 10 条:默认显示 10 个)。 */
 const DEFAULT_PAGE_SIZE = 10
 
 /** 搜索模式每页数量(§11:搜索时 page_size = 20)。 */
 const SEARCH_PAGE_SIZE = 20
-
-/** 读取统一失败文案。 */
-function resolveErrorMessage(error, fallback) {
-  return error?.normalized?.message ?? error?.message ?? fallback
-}
 
 /** 只保留后端真实给的字段,任何缺失都保持 null / 空数组,绝不填假数据。 */
 function normalizeTags(tags) {
@@ -22,7 +18,17 @@ function normalizeTags(tags) {
   return tags.filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim())
 }
 
-/** 列表接口的一行 -> 组件可安全渲染的景点摘要。 */
+/** 可选英文名字段:没有就是空字符串,绝不用中文或拼音伪造英文名。 */
+function optionalText(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+/**
+ * 列表接口的一行 -> 组件可安全渲染的景点摘要。
+ *
+ * `poi_id` / `rating` / `photos` 等事实字段永远是后端原值;
+ * `name_en` / `name_en_source` 只影响展示(v0.3.1 增量字段)。
+ */
 function normalizeAttraction(item) {
   if (!item || typeof item !== 'object') {
     return null
@@ -39,9 +45,12 @@ function normalizeAttraction(item) {
   return {
     poi_id: String(poiId),
     name: typeof item.name === 'string' ? item.name : '',
+    name_en: optionalText(item.name_en),
+    name_en_source: optionalText(item.name_en_source),
     cover_photo: typeof item.cover_photo === 'string' ? item.cover_photo : '',
     rating: hasRating ? rating : null,
     tags: normalizeTags(item.tags),
+    tags_en: normalizeTags(item.tags_en),
   }
 }
 
@@ -54,7 +63,7 @@ function normalizePage(data) {
   }
 }
 
-/** 城市对象 -> 只保留请求需要的两个字段。 */
+/** 城市对象 -> 只保留请求需要的两个字段(中文名 + adcode,绝不带展示名)。 */
 function normalizeCity(city) {
   if (!city || !city.city_name) {
     return null
@@ -69,7 +78,12 @@ function mergeUnique(existing, incoming) {
   return [...existing, ...incoming.filter((item) => !seen.has(item.poi_id))]
 }
 
-/** 景点状态中心:列表 / 搜索 / 分页 / 详情。 */
+/**
+ * 景点状态中心:列表 / 搜索 / 分页 / 详情。
+ *
+ * v0.3.1:语言只影响展示。响应同时携带中英字段,因此**切换语言不重新请求**,
+ * 页码、`poi_id`、`has_more`、已加载数量都不会因为切语言而重置。
+ */
 export const useAttractionStore = defineStore('attractions', {
   state: () => ({
     items: [],
@@ -81,7 +95,7 @@ export const useAttractionStore = defineStore('attractions', {
     selectedDetail: null,
     isLoading: false,
     isDetailLoading: false,
-    error: '',
+    error: null,
   }),
 
   actions: {
@@ -97,7 +111,7 @@ export const useAttractionStore = defineStore('attractions', {
       this.keyword = ''
       this.page = 1
       this.hasMore = false
-      this.error = ''
+      this.error = null
       this.items = []
       this.isLoading = true
 
@@ -115,7 +129,7 @@ export const useAttractionStore = defineStore('attractions', {
       } catch (error) {
         this.items = []
         this.hasMore = false
-        this.error = resolveErrorMessage(error, '景点加载失败,请稍后重试')
+        this.error = toErrorInfo(error)
       } finally {
         this.isLoading = false
       }
@@ -139,7 +153,7 @@ export const useAttractionStore = defineStore('attractions', {
       this.page = 1
       this.pageSize = SEARCH_PAGE_SIZE
       this.hasMore = false
-      this.error = ''
+      this.error = null
       this.items = []
       this.isLoading = true
 
@@ -158,7 +172,7 @@ export const useAttractionStore = defineStore('attractions', {
       } catch (error) {
         this.items = []
         this.hasMore = false
-        this.error = resolveErrorMessage(error, '景点搜索失败,请稍后重试')
+        this.error = toErrorInfo(error)
       } finally {
         this.isLoading = false
       }
@@ -175,7 +189,7 @@ export const useAttractionStore = defineStore('attractions', {
       const nextPage = previousPage + 1
 
       this.page = nextPage
-      this.error = ''
+      this.error = null
       this.isLoading = true
 
       try {
@@ -192,7 +206,7 @@ export const useAttractionStore = defineStore('attractions', {
         this.hasMore = page.hasMore
       } catch (error) {
         this.page = previousPage
-        this.error = resolveErrorMessage(error, '加载更多景点失败,请稍后重试')
+        this.error = toErrorInfo(error)
       } finally {
         this.isLoading = false
       }
@@ -202,7 +216,7 @@ export const useAttractionStore = defineStore('attractions', {
      * 打开景点详情。
      *
      * 先放一份占位详情再请求:即使接口失败,弹窗也能正常打开并显示"暂无信息",
-     * 页面不会因为详情接口异常而卡死(§40)。
+     * 页面不会因为详情接口异常而卡死。
      */
     async openDetail(poiId) {
       const id = poiId === null || poiId === undefined ? '' : String(poiId)
@@ -210,23 +224,37 @@ export const useAttractionStore = defineStore('attractions', {
         return
       }
 
-      this.error = ''
+      this.error = null
       this.isDetailLoading = true
-      this.selectedDetail = { poi_id: id, name: '', photos: [], address: null, cost: null, tags: [] }
+      this.selectedDetail = {
+        poi_id: id,
+        name: '',
+        name_en: '',
+        photos: [],
+        address: null,
+        address_en: '',
+        cost: null,
+        tags: [],
+        tags_en: [],
+      }
 
       try {
         const data = await getAttractionDetail(id)
         this.selectedDetail = {
           poi_id: data?.poi_id === null || data?.poi_id === undefined ? id : String(data.poi_id),
           name: typeof data?.name === 'string' ? data.name : '',
+          name_en: optionalText(data?.name_en),
+          name_en_source: optionalText(data?.name_en_source),
           photos: Array.isArray(data?.photos) ? data.photos : [],
           address: data?.address ?? null,
+          address_en: optionalText(data?.address_en),
           cost: data?.cost ?? null,
           tags: normalizeTags(data?.tags),
+          tags_en: normalizeTags(data?.tags_en),
           // 后端可能返回 location,前端直接丢弃:UI 层不持有经纬度。
         }
       } catch (error) {
-        this.error = resolveErrorMessage(error, '景点详情获取失败,请稍后重试')
+        this.error = toErrorInfo(error)
       } finally {
         this.isDetailLoading = false
       }
@@ -248,7 +276,7 @@ export const useAttractionStore = defineStore('attractions', {
       this.selectedDetail = null
       this.isLoading = false
       this.isDetailLoading = false
-      this.error = ''
+      this.error = null
     },
   },
 })

@@ -52,6 +52,16 @@ class Settings(BaseSettings):
     agent_max_tool_rounds: int = 5
     agent_context_message_limit: int = 30
 
+    # v0.3.1 i18n:翻译缓存与批量结构化翻译的成本 / 稳定性闸门(§6.3 / §13.2)。
+    # - translation_cache_enabled:关掉后不读也不写 entity_translations(仍然会翻译);
+    # - translation_batch_size:单次 DeepSeek 请求最多带多少条待翻译字段(契约要求 ≤ 该值);
+    # - translation_timeout_seconds:单次翻译请求超时,超时按失败降级,不阻塞整页;
+    # - translation_max_retries:失败后的有限重试次数(0 = 不重试)。
+    translation_cache_enabled: bool = True
+    translation_batch_size: int = 10
+    translation_timeout_seconds: float = 20.0
+    translation_max_retries: int = 1
+
 
 @lru_cache
 def get_settings() -> Settings:

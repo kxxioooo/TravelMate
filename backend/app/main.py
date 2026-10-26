@@ -9,14 +9,36 @@
     python -m app.db.init_db
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.router import build_api_router
 from app.core.config import get_settings
+from app.core.errors import SERVER_UNAVAILABLE, AppError, build_message_key
 from app.db.init_db import init_db
+
+
+def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+    """受控业务异常 -> 契约 §5 的响应体(detail + error_code + message_key)。
+
+    `detail` 仍然是中文字符串,所以 v0.3 前端读 detail 的兜底逻辑照常可用;
+    新前端改读 `error_code` 走 `t('error.' + code)`。
+    """
+    return JSONResponse(status_code=exc.status_code, content=exc.to_response_body())
+
+
+def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+    """数据库异常统一降级为 500 + 人话,绝不把 traceback 抛给前端。"""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "服务器暂时不可用",
+            "error_code": SERVER_UNAVAILABLE,
+            "message_key": build_message_key(SERVER_UNAVAILABLE),
+        },
+    )
 
 
 def create_app(init_database: bool = True) -> FastAPI:
@@ -27,8 +49,8 @@ def create_app(init_database: bool = True) -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="TravelMate AI API",
-        version="0.1.0",
-        description="v0.1:账户系统、用户偏好、城市索引基础层。",
+        version="0.3.1",
+        description="v0.3.1:中英双语国际化(双语实体字段 / 天气 codes / Agent locale)。",
     )
 
     app.add_middleware(
@@ -41,13 +63,9 @@ def create_app(init_database: bool = True) -> FastAPI:
 
     register_routers(app)
 
-    # 数据库异常统一降级为 500 + 人话,绝不把 SQLAlchemyError / traceback 抛给前端
-    app.add_exception_handler(
-        SQLAlchemyError,
-        lambda request, exc: JSONResponse(
-            status_code=500, content={"detail": "服务器暂时不可用"}
-        ),
-    )
+    # 受控业务异常(v0.3.1 新增)+ 数据库异常,统一带机器可读错误码
+    app.add_exception_handler(AppError, app_error_handler)
+    app.add_exception_handler(SQLAlchemyError, database_error_handler)
 
     if init_database:
         init_db()

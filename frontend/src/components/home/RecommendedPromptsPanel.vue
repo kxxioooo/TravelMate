@@ -1,38 +1,40 @@
 <template>
   <div class="tm-prompts">
-    <p class="tm-prompts-hint">
-      点击后会把问题填入 AI 区输入框(不会自动发送),你可以改完再发。
-    </p>
+    <p class="tm-prompts-hint">{{ t('chat.prompts_hint') }}</p>
 
     <ul class="tm-prompts-list">
-      <li v-for="prompt in PROMPTS" :key="prompt">
-        <button type="button" class="tm-prompt-item" @click="handlePromptClick(prompt)">
+      <li v-for="key in PROMPT_KEYS" :key="key">
+        <button type="button" class="tm-prompt-item" @click="handlePromptClick(t(key))">
           <el-icon class="tm-prompt-icon"><MagicStick /></el-icon>
-          <span>{{ prompt }}</span>
+          <span>{{ t(key) }}</span>
         </button>
       </li>
     </ul>
 
     <footer class="tm-prompts-footer">
-      <el-button text @click="closePanel">关闭</el-button>
+      <el-button text @click="closePanel">{{ t('common.close') }}</el-button>
     </footer>
   </div>
 </template>
 
 <script setup>
 import { MagicStick } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
-/** v0.1 静态示例;v0.3 保留此组件(函数仍为 2 个),点击后进入真实 Chat 输入。 */
-const PROMPTS = [
-  '帮我规划成都三日游',
-  '推荐适合自然风景爱好者的城市',
-  '杭州和苏州应该怎么选择?',
-  '预算 3000 元去哪里玩?',
-]
+/**
+ * 推荐问题面板。
+ *
+ * 只保存 i18n key:推荐问题属于应用控制的文案,必须随语言即时切换;
+ * 点击后把**当前语言**的问句抛给父组件(HomeView → ChatPanel),
+ * 只填入输入框、不自动发送。
+ */
+const PROMPT_KEYS = ['chat.prompt_1', 'chat.prompt_2', 'chat.prompt_3', 'chat.prompt_4']
+
+const { t } = useI18n()
 
 const emit = defineEmits(['prompt-selected', 'close'])
 
-/** 点击推荐问题,把文本抛给父组件(HomeView → ChatPanel.applyRecommendedPrompt)。 */
+/** 点击推荐问题,把当前语言的文本抛给父组件。 */
 function handlePromptClick(prompt) {
   emit('prompt-selected', prompt)
 }

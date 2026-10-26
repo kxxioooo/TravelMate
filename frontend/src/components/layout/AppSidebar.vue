@@ -5,21 +5,21 @@
       <span v-show="!collapsed" class="tm-sidebar-name">TravelMate</span>
     </div>
 
-    <!-- Sidebar 里永远不放 City Search -->
-    <nav class="tm-sidebar-nav">
+    <!-- Sidebar 里永远不放 City Search,也不放语言切换(语言切换固定在 Topbar 右侧) -->
+    <nav class="tm-sidebar-nav" :aria-label="t('nav.aria_label')">
       <button type="button" class="tm-nav-item" @click="openPreferences">
         <el-icon><Star /></el-icon>
-        <span v-show="!collapsed">Preferences</span>
+        <span v-show="!collapsed">{{ t('nav.preferences') }}</span>
       </button>
 
       <button type="button" class="tm-nav-item" @click="openRecommendedPrompts">
         <el-icon><MagicStick /></el-icon>
-        <span v-show="!collapsed">Recommended Prompts</span>
+        <span v-show="!collapsed">{{ t('nav.recommended_prompts') }}</span>
       </button>
 
       <button type="button" class="tm-nav-item" @click="openSettings">
         <el-icon><Setting /></el-icon>
-        <span v-show="!collapsed">Settings</span>
+        <span v-show="!collapsed">{{ t('nav.settings') }}</span>
       </button>
     </nav>
 
@@ -31,24 +31,34 @@
       </el-avatar>
       <div v-show="!collapsed" class="tm-sidebar-user-meta">
         <span class="tm-sidebar-username">{{ authStore.user?.username }}</span>
-        <button type="button" class="tm-sidebar-logout" @click="handleLogout">Log out</button>
+        <button type="button" class="tm-sidebar-logout" @click="handleLogout">
+          {{ t('nav.logout') }}
+        </button>
       </div>
     </div>
 
-    <button type="button" class="tm-sidebar-collapse" @click="toggleCollapse">
+    <button
+      type="button"
+      class="tm-sidebar-collapse"
+      :aria-label="collapsed ? t('nav.expand') : t('nav.collapse')"
+      @click="toggleCollapse"
+    >
       <el-icon v-if="collapsed"><DArrowRight /></el-icon>
       <el-icon v-else><DArrowLeft /></el-icon>
-      <span v-show="!collapsed">Collapse</span>
+      <span v-show="!collapsed">{{ t('nav.collapse') }}</span>
     </button>
   </aside>
 </template>
 
 <script setup>
 import { DArrowLeft, DArrowRight, MagicStick, Setting, Star } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '../../stores/auth'
 import { usePreferencesStore } from '../../stores/preferences'
+
+const { t } = useI18n()
 
 const props = defineProps({
   collapsed: { type: Boolean, default: false },

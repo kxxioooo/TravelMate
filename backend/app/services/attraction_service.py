@@ -7,10 +7,17 @@
 - map_poi_to_summary / map_poi_to_detail:纯映射,缺失值一律 None(§36)。
 
 本版本不让 DeepSeek 生成景点列表(§30.1)。
+
+v0.3.1(契约 §2 / §6):只**追加**双语展示字段。
+- 中文事实字段(poi_id / name / address / rating / cost / photos / location)完全不变;
+- 英文 locale 下由 entity_localization_service 批量补 `name_en` / `address_en` / `tags_en`;
+- 关键词搜索在路由层先转成中文(`query_translation_service`),高德收到的仍是中文
+  关键词 + `types=110000` + `citylimit=true`,与 v0.2 完全一致。
 """
 
 from typing import Any, Mapping, Optional
 
+from app.core.locale import DEFAULT_LOCALE
 from app.schemas.attraction import (
     AttractionDetail,
     AttractionLocation,
@@ -18,7 +25,7 @@ from app.schemas.attraction import (
     PagedAttractionResponse,
     PhotoItem,
 )
-from app.services import amap_client
+from app.services import amap_client, entity_localization_service
 
 DEFAULT_PAGE_SIZE = 10
 SEARCH_DEFAULT_PAGE_SIZE = 20
@@ -169,8 +176,18 @@ def _resolve_city(city_name: Optional[str], adcode: Optional[str]) -> str:
     return _clean_str(city_name) or _clean_str(adcode) or ""
 
 
+async def _localize_summaries(
+    db: Any, items: list[AttractionSummary], locale: str
+) -> list[AttractionSummary]:
+    """英文 locale 下补双语字段;中文 locale 原样返回(响应与 v0.3 一致)。"""
+    return await entity_localization_service.localize_attraction_summaries(db, items, locale)
+
+
 async def get_featured_attractions(
-    city_name: str, adcode: Optional[str] = None
+    city_name: str,
+    adcode: Optional[str] = None,
+    locale: str = DEFAULT_LOCALE,
+    db: Any = None,
 ) -> PagedAttractionResponse:
     """默认模式:该城市 10 个常见景点,使用高德默认排序(不带 keywords)。"""
     page, page_size = 1, DEFAULT_PAGE_SIZE
@@ -182,6 +199,7 @@ async def get_featured_attractions(
         page_size=page_size,
     )
     items = [map_poi_to_summary(poi) for poi in _valid_pois(payload)][:page_size]
+    items = await _localize_summaries(db, items, locale)
     total = _total_count(payload)
     return PagedAttractionResponse(
         items=items,
@@ -198,8 +216,14 @@ async def search_attractions(
     keyword: str = "",
     page: int = 1,
     page_size: int = SEARCH_DEFAULT_PAGE_SIZE,
+    locale: str = DEFAULT_LOCALE,
+    db: Any = None,
 ) -> PagedAttractionResponse:
-    """搜索模式:keyword 必填,城市范围内分页,page_size 上限 20。"""
+    """搜索模式:keyword 必填,城市范围内分页,page_size 上限 20。
+
+    `keyword` 必须是**中文**检索词:英文关键词由路由层先用
+    query_translation_service 解析(失败给 422,绝不悄悄退化成默认列表)。
+    """
     safe_keyword = _clean_str(keyword) or ""
     if not safe_keyword:
         raise ValueError("搜索关键词不能为空")
@@ -214,6 +238,7 @@ async def search_attractions(
         page_size=safe_page_size,
     )
     items = [map_poi_to_summary(poi) for poi in _valid_pois(payload)][:safe_page_size]
+    items = await _localize_summaries(db, items, locale)
     total = _total_count(payload)
     return PagedAttractionResponse(
         items=items,
@@ -224,7 +249,10 @@ async def search_attractions(
     )
 
 
-async def get_attraction_detail(poi_id: str) -> AttractionDetail:
-    """详情:取高德 POI detail 后映射成契约结构。"""
+async def get_attraction_detail(
+    poi_id: str, locale: str = DEFAULT_LOCALE, db: Any = None
+) -> AttractionDetail:
+    """详情:取高德 POI detail 后映射成契约结构(+ 英文 locale 的双语字段)。"""
     poi = await amap_client.get_poi_detail(poi_id)
-    return map_poi_to_detail(poi)
+    detail = map_poi_to_detail(poi)
+    return await entity_localization_service.localize_attraction_detail(db, detail, locale)

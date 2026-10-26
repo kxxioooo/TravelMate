@@ -4,7 +4,7 @@
       <el-input
         v-model="keyword"
         class="tm-food-search"
-        placeholder="搜索具体美食,例如:火锅"
+        :placeholder="t('food.search_placeholder')"
         clearable
         @keyup.enter="submitSearch"
         @clear="resetToFeatured"
@@ -14,15 +14,23 @@
         </template>
       </el-input>
 
-      <el-button class="tm-food-search-btn" type="primary" @click="submitSearch">搜索</el-button>
-      <el-button v-if="isSearchMode" text @click="resetToFeatured">返回十大美食</el-button>
+      <el-button class="tm-food-search-btn" type="primary" @click="submitSearch">
+        {{ t('food.search_button') }}
+      </el-button>
+      <el-button v-if="isSearchMode" text @click="resetToFeatured">
+        {{ t('food.back_to_featured') }}
+      </el-button>
     </div>
 
     <div v-loading="foodStore.isLoading" class="tm-food-list">
       <template v-if="isSearchMode">
         <p class="tm-food-mode-hint">
-          「{{ displayOrUnknown(foodStore.keyword) }}」相关餐厅,共
-          {{ foodStore.restaurantResults.length }} 个已加载
+          {{
+            t('food.search_hint', {
+              keyword: displayOrUnknown(foodStore.keyword),
+              count: foodStore.restaurantResults.length,
+            })
+          }}
         </p>
 
         <div v-if="foodStore.restaurantResults.length" class="tm-restaurant-result-list">
@@ -36,8 +44,8 @@
 
         <EmptyState
           v-else-if="!foodStore.isLoading"
-          title="没有找到相关餐厅"
-          :description="foodStore.error || '换一个美食关键词试试,或点击「返回十大美食」。'"
+          :title="t('food.empty_search_title')"
+          :description="searchEmptyDescription"
         />
       </template>
 
@@ -53,8 +61,8 @@
 
         <EmptyState
           v-else-if="!foodStore.isLoading"
-          title="暂无美食数据"
-          :description="foodStore.error || '当前城市暂时没有可展示的代表性美食,请稍后重试。'"
+          :title="t('food.empty_default_title')"
+          :description="featuredEmptyDescription"
         />
       </template>
     </div>
@@ -70,9 +78,11 @@
 <script setup>
 import { Search } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useFoodStore } from '../../stores/food'
 import { displayOrUnknown } from '../../utils/display'
+import { formatLocalizedError } from '../../utils/i18nDisplay'
 import EmptyState from '../common/EmptyState.vue'
 import LoadMoreButton from '../common/LoadMoreButton.vue'
 import FoodCard from './FoodCard.vue'
@@ -82,6 +92,9 @@ import RestaurantSearchResultCard from './RestaurantSearchResultCard.vue'
  * 美食 Tab,两种模式:
  *   featured —— 10 种代表性美食 × 每种 2 家代表餐厅(第一次切到本 Tab 才加载);
  *   search   —— 关键词命中的餐厅结果列表,支持 Load More。
+ *
+ * 英文关键词(`hot pot`)由后端转成经验证的中文关键词查高德;
+ * 输入框始终保留用户原文,不做改写。
  */
 const props = defineProps({
   city: { type: Object, default: null },
@@ -90,6 +103,8 @@ const props = defineProps({
 
 const emit = defineEmits(['search'])
 
+const { t } = useI18n()
+
 const foodStore = useFoodStore()
 
 const keyword = ref('')
@@ -97,6 +112,20 @@ const keyword = ref('')
 const requested = ref(false)
 
 const isSearchMode = computed(() => foodStore.mode === 'search')
+
+/** 餐厅搜索空态描述:有错误就显示本地化错误,否则显示引导文案。 */
+const searchEmptyDescription = computed(() =>
+  foodStore.error
+    ? formatLocalizedError(foodStore.error, { t, fallbackKey: 'food.empty_search_desc' })
+    : t('food.empty_search_desc'),
+)
+
+/** 十大美食空态描述。 */
+const featuredEmptyDescription = computed(() =>
+  foodStore.error
+    ? formatLocalizedError(foodStore.error, { t, fallbackKey: 'food.empty_default_desc' })
+    : t('food.empty_default_desc'),
+)
 
 /** 第一次真正进入美食 Tab 时再加载十大美食。 */
 function ensureFeaturedLoaded() {

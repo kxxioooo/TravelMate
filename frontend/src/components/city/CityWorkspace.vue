@@ -9,13 +9,14 @@
               :city="city"
               :weather="weather"
               :clothing-advice="clothingAdvice"
+              :clothing-advice-codes="clothingAdviceCodes"
               :loading="weatherLoading"
             />
 
             <el-tabs v-model="activeTab" class="tm-city-tabs" @tab-change="switchTab">
               <el-tab-pane name="attractions" lazy>
                 <template #label>
-                  <span class="tm-tab-attractions">景点</span>
+                  <span class="tm-tab-attractions">{{ t('attraction.tab') }}</span>
                 </template>
                 <AttractionTab
                   :city="city"
@@ -26,7 +27,7 @@
 
               <el-tab-pane name="food" lazy>
                 <template #label>
-                  <span class="tm-tab-food">美食</span>
+                  <span class="tm-tab-food">{{ t('food.tab') }}</span>
                 </template>
                 <FoodTab :city="city" :active="activeTab === 'food'" @search="handleFoodSearch" />
               </el-tab-pane>
@@ -34,10 +35,10 @@
           </template>
 
           <section v-else class="tm-city-welcome">
-            <h1 class="tm-hero-title">你好,{{ username || '旅行者' }}</h1>
-            <p class="tm-city-welcome-hint">
-              在顶部搜索并选择一个城市,开始规划你的旅程。
-            </p>
+            <h1 class="tm-hero-title">
+              {{ t('city.welcome_title', { name: username || t('common.traveler') }) }}
+            </h1>
+            <p class="tm-city-welcome-hint">{{ t('city.welcome_hint') }}</p>
           </section>
         </div>
       </el-splitter-panel>
@@ -65,6 +66,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useAttractionStore } from '../../stores/attractions'
 import { useFoodStore } from '../../stores/food'
@@ -78,10 +80,13 @@ import CityHeader from './CityHeader.vue'
 const ATTRACTIONS_TAB = 'attractions'
 const FOOD_TAB = 'food'
 
+const { t } = useI18n()
+
 const props = defineProps({
   city: { type: Object, default: null },
   weather: { type: Object, default: null },
   clothingAdvice: { type: String, default: '' },
+  clothingAdviceCodes: { type: Array, default: () => [] },
   weatherLoading: { type: Boolean, default: false },
   username: { type: String, default: '' },
 })

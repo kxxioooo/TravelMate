@@ -4,22 +4,22 @@
       <button
         type="button"
         class="tm-drawer-toggle"
-        aria-label="打开会话列表"
-        title="会话列表"
+        :aria-label="t('chat.open_conversations')"
+        :title="t('chat.conversations_title')"
         @click="openConversationDrawer"
       >
         ☰
       </button>
 
       <div class="tm-chat-header-main">
-        <h2 class="tm-chat-title">AI Travel Agent</h2>
+        <h2 class="tm-chat-title">{{ t('chat.title') }}</h2>
 
         <div class="tm-chat-header-cities">
           <button
             type="button"
             class="tm-conversation-cities"
             :disabled="!hasActiveConversation"
-            :title="hasActiveConversation ? '点击修改当前会话城市' : '当前没有进行中的会话'"
+            :title="hasActiveConversation ? t('chat.edit_cities_title') : t('chat.no_active_conversation')"
             @click="dialogs.mode = 'edit'"
           >
             {{ conversationCitiesText }}
@@ -29,36 +29,33 @@
             type="button"
             class="tm-edit-cities-btn"
             :disabled="!hasActiveConversation"
-            title="修改当前会话城市"
+            :title="t('chat.modify_cities_title')"
             @click="dialogs.mode = 'edit'"
           >
-            改城市
+            {{ t('chat.edit_cities') }}
           </button>
         </div>
       </div>
 
       <el-button class="tm-new-chat-btn" type="primary" plain @click="openNewConversation">
-        + New Chat
+        + {{ t('chat.new_chat') }}
       </el-button>
     </header>
 
     <div class="tm-chat-body">
       <!-- §25.1 没有 active Conversation 时显示欢迎态,不强制自动建会话 -->
       <div v-if="!hasActiveConversation" class="tm-chat-welcome">
-        <h3 class="tm-chat-welcome-title">开始一段新的旅行对话</h3>
-        <p class="tm-chat-welcome-text">
-          直接提问就行 —— 还没有会话时我会自动为你创建一个。也可以点 + New Chat
-          选择这次要聊的城市(0 个 / 1 个 / 多个都可以)。
-        </p>
+        <h3 class="tm-chat-welcome-title">{{ t('chat.welcome_title') }}</h3>
+        <p class="tm-chat-welcome-text">{{ t('chat.welcome_text') }}</p>
         <ul class="tm-chat-welcome-list">
-          <li v-for="example in WELCOME_EXAMPLES" :key="example">{{ example }}</li>
+          <li v-for="key in WELCOME_EXAMPLE_KEYS" :key="key">{{ t(key) }}</li>
         </ul>
       </div>
 
       <MessageList v-show="hasActiveConversation" :messages="chatStore.messages" @retry="handleSend" />
     </div>
 
-    <p v-if="chatStore.error" class="tm-chat-error">{{ chatStore.error }}</p>
+    <p v-if="chatStore.error" class="tm-chat-error">{{ errorText }}</p>
 
     <!-- §25.5 只显示真实发生的活动;发送中先显示"正在理解请求……" -->
     <AgentActivity v-show="chatStore.activities.length" :activities="chatStore.activities" />
@@ -84,21 +81,30 @@
 
 <script setup>
 import { computed, onMounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useChatStore } from '../../stores/chat'
 import { useConversationStore } from '../../stores/conversations'
+import { formatLocalizedError, displayCityName } from '../../utils/i18nDisplay'
 import AgentActivity from './AgentActivity.vue'
 import ChatInput from './ChatInput.vue'
 import ConversationDrawer from './ConversationDrawer.vue'
 import MessageList from './MessageList.vue'
 import NewConversationDialog from './NewConversationDialog.vue'
 
-/** 欢迎态里的示例问题;点击 Recommended Prompts 才是真正的填充入口。 */
-const WELCOME_EXAMPLES = [
-  '帮我规划成都三日游',
-  '推荐适合自然风景爱好者的城市',
-  '预算 3000 元去哪里玩?',
+/**
+ * 欢迎态里的示例问题。
+ *
+ * 只存 i18n key —— 推荐问题属于应用控制的文案,必须随语言切换;
+ * 点击 Recommended Prompts 才是真正的填充入口。
+ */
+const WELCOME_EXAMPLE_KEYS = [
+  'chat.welcome_example_1',
+  'chat.welcome_example_2',
+  'chat.welcome_example_3',
 ]
+
+const { t, locale } = useI18n()
 
 const conversationStore = useConversationStore()
 const chatStore = useChatStore()
@@ -116,14 +122,19 @@ const hasActiveConversation = computed(() => Boolean(conversationStore.activeCon
 /** §40 这里读的是 Conversation 的城市,与 cityStore.selectedCity 完全无关。 */
 const activeConversationCities = computed(() => conversationStore.activeConversation?.cities ?? [])
 
+/** 会话城市:英文模式 `Chengdu (成都) · Leshan (乐山)`,城市集合不变。 */
 const conversationCitiesText = computed(() => {
   if (!hasActiveConversation.value) {
-    return '未选择会话'
+    return t('conversation.no_conversation')
   }
 
-  const names = activeConversationCities.value.map((city) => city.city_name)
-  return names.length ? names.join(' · ') : '未选择城市'
+  const names = activeConversationCities.value.map((city) => displayCityName(city, locale.value))
+
+  return names.length ? names.join(' · ') : t('conversation.no_city')
 })
+
+/** 本地化错误文案(按 error_code / detail / 状态码解析,切换语言即时更新)。 */
+const errorText = computed(() => formatLocalizedError(chatStore.error, { t }))
 
 /**
  * §25.1 initializeChat():进入主页时拉会话列表。

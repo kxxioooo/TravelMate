@@ -18,6 +18,8 @@
     >
       <header class="tm-topbar">
         <TopCitySearch :selected-city="selectedCity" @city-selected="handleCitySelected" />
+        <!-- 语言切换固定在 Topbar 最右侧(规格 §4.2:只放顶部,不进 Sidebar / AI Drawer) -->
+        <LanguageSwitcher />
       </header>
 
       <main class="tm-content" :class="{ 'tm-content--workspace': Boolean(selectedCity) }">
@@ -32,6 +34,7 @@ import { ref } from 'vue'
 
 import AppSidebar from './AppSidebar.vue'
 import TopCitySearch from './TopCitySearch.vue'
+import LanguageSwitcher from '../common/LanguageSwitcher.vue'
 
 defineProps({
   selectedCity: { type: Object, default: null },
@@ -63,6 +66,7 @@ function handleCitySelected(city) {
   top: 0;
   z-index: 10;
   display: flex;
+  gap: 16px;
   align-items: center;
   height: var(--tm-topbar-height);
   padding: 0 32px;
@@ -73,6 +77,7 @@ function handleCitySelected(city) {
 
 @media (max-width: 900px) {
   .tm-topbar {
+    gap: 10px;
     padding: 0 16px;
   }
 }

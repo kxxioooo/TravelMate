@@ -9,6 +9,12 @@
 
 v0.3 变更(§9):DeepSeek 调用从专用 `deepseek_food_client` 换成通用
 `deepseek_client.generate_json()`;对外行为与函数数量(8 个)完全不变。
+
+v0.3.1(契约 §2 / §6.5):只**追加**双语字段。
+- 中文菜名 / 介绍 / 餐厅名 / 地址仍是事实来源,一个字都不改;
+- 英文 locale 下先批量补 `name_en` / `description_en`(菜名优先走审核词典),
+  再补代表餐厅的 `name_en`;拿不到可信英文名时标 `fallback`,绝不编造;
+- 高德检索餐厅时用的永远是**中文**菜名(英文关键词在路由层先转中文)。
 """
 
 import asyncio
@@ -16,6 +22,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
+from app.core.locale import DEFAULT_LOCALE
 from app.schemas.attraction import PhotoItem
 from app.schemas.food import (
     FeaturedFoodItem,
@@ -24,7 +31,7 @@ from app.schemas.food import (
     RestaurantDetail,
     RestaurantSummary,
 )
-from app.services import amap_client, deepseek_client
+from app.services import amap_client, deepseek_client, entity_localization_service
 from app.services.deepseek_client import DeepSeekDataError
 
 #: 并发上限:实测这把 Key 在 3 个并发附近开始限流,所以取 3
@@ -264,9 +271,15 @@ async def search_representative_restaurants(
 
 
 async def get_featured_foods(
-    city_name: str, adcode: Optional[str] = None
+    city_name: str,
+    adcode: Optional[str] = None,
+    locale: str = DEFAULT_LOCALE,
+    db: Any = None,
 ) -> FeaturedFoodResponse:
-    """默认美食模式:DeepSeek 出 10 种美食,并发(限流保护)查各自的代表餐厅。"""
+    """默认美食模式:DeepSeek 出 10 种美食,并发(限流保护)查各自的代表餐厅。
+
+    英文 locale 下最后一次性批量补双语字段(不是每张卡片一次请求)。
+    """
     city = _resolve_city(city_name, adcode)
     if not city:
         raise ValueError("缺少城市参数")
@@ -301,6 +314,7 @@ async def get_featured_foods(
             items.append(build_food_response(food, [], None))
         else:
             items.append(result)
+    items = await entity_localization_service.localize_featured_foods(db, items, locale)
     return FeaturedFoodResponse(items=items)
 
 
@@ -310,8 +324,13 @@ async def search_food_restaurants(
     page: int = 1,
     page_size: int = DEFAULT_RESTAURANT_PAGE_SIZE,
     adcode: Optional[str] = None,
+    locale: str = DEFAULT_LOCALE,
+    db: Any = None,
 ) -> PagedRestaurantResponse:
-    """用户主动搜索某种美食(如"火锅"),返回该城市相关餐厅的分页结果。"""
+    """用户主动搜索某种美食(如"火锅"),返回该城市相关餐厅的分页结果。
+
+    `keyword` 必须是中文检索词(英文关键词由路由层先解析成中文)。
+    """
     safe_keyword = _clean_str(keyword) or ""
     if not safe_keyword:
         raise ValueError("搜索关键词不能为空")
@@ -327,6 +346,7 @@ async def search_food_restaurants(
     )
     restaurants = _valid_restaurants(payload)
     items = [map_restaurant_summary(poi) for poi in restaurants][:safe_page_size]
+    items = await entity_localization_service.localize_restaurant_summaries(db, items, locale)
     total = _total_count(payload)
     return PagedRestaurantResponse(
         items=items,
@@ -337,7 +357,10 @@ async def search_food_restaurants(
     )
 
 
-async def get_restaurant_detail(poi_id: str) -> RestaurantDetail:
-    """餐厅详情:取高德 POI detail 后映射成契约结构。"""
+async def get_restaurant_detail(
+    poi_id: str, locale: str = DEFAULT_LOCALE, db: Any = None
+) -> RestaurantDetail:
+    """餐厅详情:取高德 POI detail 后映射成契约结构(+ 英文 locale 的双语字段)。"""
     poi = await amap_client.get_poi_detail(poi_id)
-    return map_restaurant_detail(poi)
+    detail = map_restaurant_detail(poi)
+    return await entity_localization_service.localize_restaurant_detail(db, detail, locale)

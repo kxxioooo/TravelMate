@@ -10,18 +10,19 @@
 
       <p v-if="metaText" class="tm-weather-meta">{{ metaText }}</p>
 
-      <ClothingAdvice :text="clothingAdvice" />
+      <ClothingAdvice :text="clothingAdvice" :codes="clothingAdviceCodes" />
     </div>
 
     <el-button
       class="tm-weather-refresh"
       text
       :loading="loading"
-      title="刷新天气"
+      :title="t('city.weather_refresh')"
+      :aria-label="t('city.weather_refresh')"
       @click="refreshWeather"
     >
       <el-icon v-if="!loading"><Refresh /></el-icon>
-      <span v-else class="tm-weather-refresh-text">刷新中</span>
+      <span v-else class="tm-weather-refresh-text">{{ t('city.weather_refreshing') }}</span>
     </el-button>
   </header>
 </template>
@@ -29,32 +30,35 @@
 <script setup>
 import { Refresh, Sunny } from '@element-plus/icons-vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import { displayOrUnknown, UNKNOWN_TEXT } from '../../utils/display'
+import { resolveWeatherLabel, resolveWindDirectionLabel } from '../../constants/localizedTerms'
 import { useCityStore } from '../../stores/city'
+import { displayOrUnknown } from '../../utils/display'
+import { displayCityLabel } from '../../utils/i18nDisplay'
 import ClothingAdvice from './ClothingAdvice.vue'
 
 /**
  * 城市顶部信息:城市名 · 省份 + 天气 + 穿衣建议。
  *
  * 始终显示在景点 / 美食 Tab 上方,不随 Tab 切换消失。
+ * 英文模式下城市/省份按 `Chengdu (成都) · Sichuan (四川)` 展示;
+ * 天气文案由 `weather_code` 决定(数字字段原样显示,不做任何换算)。
  */
 const props = defineProps({
   city: { type: Object, default: null },
   weather: { type: Object, default: null },
   clothingAdvice: { type: String, default: '' },
+  clothingAdviceCodes: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
 })
 
+const { t, locale } = useI18n()
+
 const cityStore = useCityStore()
 
-/** "成都 · 四川"。 */
-const cityTitle = computed(() => {
-  const parts = [props.city?.city_name, props.city?.province].filter(
-    (part) => typeof part === 'string' && part.trim(),
-  )
-  return parts.length ? parts.join(' · ') : ''
-})
+/** `Chengdu (成都) · Sichuan (四川)` / `成都 · 四川`。 */
+const cityTitle = computed(() => displayCityLabel(props.city, locale.value))
 
 /** 温度:没有 temperature 时留空,让摘要整体兜底。 */
 const temperatureText = computed(() => {
@@ -83,15 +87,28 @@ const temperatureRangeText = computed(() => {
   return ''
 })
 
-/** "22°C · 多云 · 18~25°C";全部缺失时显示"暂无信息"。 */
+/**
+ * `22°C · 多云 · 18~25°C`。
+ *
+ * 天气词用 `weather_code` 走本地化(缺失时按中文原文映射 code 兜底),
+ * 所以英文模式下不会残留中文天气;全部缺失时显示当前语言"暂无信息"。
+ */
 const summaryText = computed(() => {
-  const parts = [temperatureText.value, props.weather?.weather, temperatureRangeText.value].filter(
-    (part) => typeof part === 'string' && part.trim(),
-  )
-  return parts.length ? parts.join(' · ') : UNKNOWN_TEXT
+  const parts = [
+    temperatureText.value,
+    props.weather ? resolveWeatherLabel(props.weather, t) : '',
+    temperatureRangeText.value,
+  ].filter((part) => typeof part === 'string' && part.trim())
+
+  return parts.length ? parts.join(' · ') : displayOrUnknown(null)
 })
 
-/** 湿度 / 风向风力,有值才显示(§36:API 有值就显示)。 */
+/**
+ * 湿度 / 风向风力,有值才显示。
+ *
+ * 湿度、风力数字原样保留,只本地化单位与标签;风向按已审核映射翻译
+ * (未收录的写法保持高德原始数据,不臆造)。
+ */
 const metaText = computed(() => {
   const humidity = props.weather?.humidity
   const windDirection = props.weather?.wind_direction
@@ -99,10 +116,16 @@ const metaText = computed(() => {
   const parts = []
 
   if (humidity !== null && humidity !== undefined && humidity !== '') {
-    parts.push(`湿度 ${humidity}%`)
+    parts.push(t('city.humidity', { value: humidity }))
   }
+
   if (windDirection || windPower) {
-    const wind = [windDirection, windPower ? `${windPower} 级` : ''].filter(Boolean).join(' ')
+    const wind = [
+      resolveWindDirectionLabel(windDirection, t, locale.value),
+      windPower ? t('city.wind_power', { value: windPower }) : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
     parts.push(wind)
   }
 

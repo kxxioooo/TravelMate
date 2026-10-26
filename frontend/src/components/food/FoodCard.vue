@@ -1,7 +1,13 @@
 <template>
   <article class="tm-food-card">
     <div class="tm-food-card-cover">
-      <el-image v-if="coverUrl" class="tm-food-card-image" :src="coverUrl" fit="cover" alt="">
+      <el-image
+        v-if="coverUrl"
+        class="tm-food-card-image"
+        :src="coverUrl"
+        fit="cover"
+        :alt="foodName"
+      >
         <template #error>
           <div class="tm-food-card-placeholder">
             <el-icon><Food /></el-icon>
@@ -15,16 +21,16 @@
       </el-image>
       <div v-else class="tm-food-card-placeholder">
         <el-icon><Food /></el-icon>
-        <span>暂无图片</span>
+        <span>{{ t('common.no_image') }}</span>
       </div>
     </div>
 
     <div class="tm-food-card-body">
-      <h3 class="tm-food-card-name">{{ displayOrUnknown(food?.name) }}</h3>
-      <p class="tm-food-card-desc">{{ displayOrUnknown(food?.description) }}</p>
+      <h3 class="tm-food-card-name">{{ foodName }}</h3>
+      <p class="tm-food-card-desc">{{ foodDescription }}</p>
 
       <div class="tm-food-card-restaurants">
-        <p class="tm-food-card-restaurants-title">代表餐厅</p>
+        <p class="tm-food-card-restaurants-title">{{ t('food.representative_restaurants') }}</p>
         <template v-if="restaurants.length">
           <RestaurantNameItem
             v-for="restaurant in restaurants"
@@ -33,7 +39,7 @@
             @open-detail="openRestaurant"
           />
         </template>
-        <p v-else class="tm-food-card-no-restaurant">餐厅:暂无信息</p>
+        <p v-else class="tm-food-card-no-restaurant">{{ t('food.no_restaurant') }}</p>
       </div>
     </div>
   </article>
@@ -42,8 +48,10 @@
 <script setup>
 import { Food } from '@element-plus/icons-vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { displayOrUnknown, safePhotoUrls } from '../../utils/display'
+import { displayBilingualName, formatLocalizedEntity } from '../../utils/i18nDisplay'
 import RestaurantNameItem from './RestaurantNameItem.vue'
 
 /** 每种美食最多 2 家代表餐厅(§1 第 16 条)。 */
@@ -51,6 +59,9 @@ const MAX_RESTAURANTS = 2
 
 /**
  * 美食卡片:美食图片 + 名称 + 简短介绍 + 2 家代表餐厅(名称 + 详情)。
+ *
+ * 英文模式名称是 `Mapo Tofu (麻婆豆腐)`;介绍优先用后端 `description_en`,
+ * 没有英文介绍时退回原文(降级,不伪造),poi_id / 图片等事实字段不变。
  */
 const props = defineProps({
   food: { type: Object, required: true },
@@ -58,7 +69,22 @@ const props = defineProps({
 
 const emit = defineEmits(['open-restaurant'])
 
+const { t, locale } = useI18n()
+
 const coverUrl = computed(() => safePhotoUrls(props.food?.cover_photo)[0] ?? '')
+
+const foodName = computed(
+  () =>
+    displayBilingualName(props.food?.name, props.food?.name_en, locale.value) ||
+    displayOrUnknown(null),
+)
+
+/** 名称 + 介绍的本地化(介绍按当前语言选取,不翻译)。 */
+const localizedFood = computed(() => formatLocalizedEntity(props.food, locale.value))
+
+const foodDescription = computed(
+  () => localizedFood.value.description || displayOrUnknown(null),
+)
 
 const restaurants = computed(() =>
   (Array.isArray(props.food?.representative_restaurants) ? props.food.representative_restaurants : [])

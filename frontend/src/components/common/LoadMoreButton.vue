@@ -7,12 +7,14 @@
       plain
       @click="emitLoadMore"
     >
-      {{ loading ? '加载中…' : '加载更多' }}
+      {{ loading ? t('common.loading') : t('common.load_more') }}
     </el-button>
   </div>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
 /**
  * 通用 Load More 按钮。
  *
@@ -22,6 +24,8 @@ defineProps({
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
 })
+
+const { t } = useI18n()
 
 const emit = defineEmits(['load-more'])
 

@@ -5,7 +5,7 @@
       v-model="keyword"
       class="tm-city-search"
       :fetch-suggestions="refreshResults"
-      placeholder="搜索城市(支持中文 / 拼音)"
+      :placeholder="t('city.search_placeholder')"
       clearable
       @input="handleInput"
       @focus="loadRecentSearches"
@@ -21,43 +21,54 @@
           class="tm-city-option"
           :class="item.source === 'recent' ? 'tm-suggestion-recent' : 'tm-suggestion-city'"
         >
-          <span class="tm-city-option-name">{{ item.city_name }}</span>
-          <span class="tm-city-option-meta">
-            {{
-              item.source === 'recent'
-                ? `最近搜索${item.province ? ` · ${item.province}` : ''}`
-                : `${item.province} · ${item.pinyin}`
-            }}
-          </span>
+          <!-- 英文模式 `Chengdu (成都)`,中文模式 `成都`;业务值始终是中文名 + adcode -->
+          <span class="tm-city-option-name">{{ optionName(item) }}</span>
+          <span class="tm-city-option-meta">{{ optionMeta(item) }}</span>
         </div>
       </template>
     </el-autocomplete>
 
     <el-tag v-if="selectedCity" type="success" effect="light" size="large" round>
-      已选择:{{ selectedCity.city_name }} · {{ selectedCity.province }}
+      {{ t('city.selected_tag', { city: displayCityLabel(selectedCity, locale) }) }}
     </el-tag>
-    <span v-else class="tm-topbar-hint">搜索并选择一个城市</span>
+    <span v-else class="tm-topbar-hint">{{ t('city.select_hint') }}</span>
   </div>
 </template>
 
 <script setup>
 import { Search } from '@element-plus/icons-vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import cities from '../../data/cities.json'
 import { useCityStore } from '../../stores/city'
 import { searchCities } from '../../utils/citySearch'
+import {
+  displayBilingualName,
+  displayCityLabel,
+  displayProvinceName,
+} from '../../utils/i18nDisplay'
+import { enrichCity } from '../../utils/localeSearch'
 
-/** 给 el-autocomplete 的候选项补上 value 和来源标记(source 决定 UI 类名)。 */
+/**
+ * 给 el-autocomplete 的候选项补上 value 和来源标记(source 决定 UI 类名)。
+ *
+ * `city_name` / `province` / `adcode` 保持后端可用的原值;
+ * `city_name_en` / `province_en` 只用于展示,不会被写进任何请求参数。
+ */
 function buildSuggestion(city, source) {
-  const cityName = String(city?.city_name ?? '')
+  const enriched = enrichCity(city) ?? {}
 
   return {
-    city_name: cityName,
-    province: city?.province ?? '',
-    pinyin: city?.pinyin ?? '',
-    adcode: city?.adcode ?? '',
-    value: cityName,
+    city_name: String(enriched.city_name ?? ''),
+    city_name_en: String(enriched.city_name_en ?? ''),
+    province: String(enriched.province ?? ''),
+    province_en: String(enriched.province_en ?? ''),
+    pinyin: String(enriched.pinyin ?? ''),
+    pinyin_initials: String(enriched.pinyin_initials ?? ''),
+    aliases_en: Array.isArray(enriched.aliases_en) ? enriched.aliases_en : [],
+    adcode: enriched.adcode ?? '',
+    value: String(enriched.city_name ?? ''),
     source,
   }
 }
@@ -68,17 +79,46 @@ defineProps({
 
 const emit = defineEmits(['city-selected'])
 
+const { t, locale } = useI18n()
+
 const cityStore = useCityStore()
 
 const keyword = ref('')
 const autocompleteRef = ref(null)
 
-/** 最近搜索:来自后端,按当前登录用户过滤。 */
+/** 最近搜索:来自后端(只存中文名 + adcode),英文名按 adcode 从本地索引补齐。 */
 const recentSuggestions = computed(() =>
   cityStore.recentCities.map((city) => buildSuggestion(city, 'recent')),
 )
 
-/** 更新关键词。 */
+/** 候选主标题:`Chengdu (成都)` / `成都`。 */
+function optionName(item) {
+  return displayBilingualName(item.city_name, item.city_name_en, locale.value)
+}
+
+/**
+ * 候选副标题:
+ *   中文模式 -> `四川 · chengdu`
+ *   英文模式 -> `Sichuan (四川)`
+ *   最近搜索 -> 前缀 `最近搜索 / Recent`
+ */
+function optionMeta(item) {
+  const province = displayProvinceName(item, locale.value)
+
+  if (item.source === 'recent') {
+    return province
+      ? `${t('city.recent_meta')} · ${province}`
+      : t('city.recent_meta')
+  }
+
+  if (locale.value === 'en-US') {
+    return province
+  }
+
+  return [item.province, item.pinyin].filter(Boolean).join(' · ')
+}
+
+/** 更新关键词(保留用户原文,不做任何改写)。 */
 function handleInput(value) {
   keyword.value = value ?? ''
 }
@@ -86,7 +126,7 @@ function handleInput(value) {
 /**
  * 下拉候选:
  *   keyword 为空 -> Recent Searches
- *   keyword 非空 -> 本地 cities.json 匹配
+ *   keyword 非空 -> 本地 cities.json 多语言匹配(中文 / 拼音 / 首字母 / 英文 / 别名)
  *
  * el-autocomplete 在 focus 时会用当前(可能为空的)modelValue 触发一次,
  * 因此"空关键词 + focus"天然会走到 Recent Searches 分支。
@@ -123,7 +163,8 @@ async function loadRecentSearches() {
 /**
  * 选中城市:向上抛出,并清空输入框。
  *
- * 真正写 history 由 cityStore.openCity() 完成,组件不承担数据写入。
+ * 抛出的对象只带中文名 / adcode / province 等业务字段,
+ * 展示用的英文名不会被写进城市历史或 Conversation。
  */
 function handleSelect(city) {
   emit('city-selected', city)
@@ -151,18 +192,23 @@ onMounted(() => {
 <style scoped>
 .tm-topbar-inner {
   display: flex;
+  flex: 1;
   gap: 16px;
   align-items: center;
-  width: 100%;
+  min-width: 0;
 }
 
 .tm-city-search {
   width: 320px;
+  max-width: 100%;
 }
 
 .tm-topbar-hint {
+  overflow: hidden;
   font-size: 13px;
   color: var(--tm-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tm-city-option {
@@ -181,6 +227,7 @@ onMounted(() => {
 .tm-city-option-meta {
   font-size: 12px;
   color: var(--tm-muted);
+  white-space: nowrap;
 }
 
 .tm-suggestion-recent .tm-city-option-name::before {

@@ -4,7 +4,7 @@
       <el-input
         v-model="keyword"
         class="tm-attraction-search"
-        placeholder="搜索当前城市的景点,例如:古镇"
+        :placeholder="t('attraction.search_placeholder')"
         clearable
         @keyup.enter="submitSearch"
         @clear="resetToDefault"
@@ -15,14 +15,20 @@
       </el-input>
 
       <el-button class="tm-attraction-search-btn" type="primary" @click="submitSearch">
-        搜索
+        {{ t('attraction.search_button') }}
       </el-button>
-      <el-button v-if="isSearchMode" text @click="resetToDefault">返回默认</el-button>
+      <el-button v-if="isSearchMode" text @click="resetToDefault">
+        {{ t('attraction.back_to_default') }}
+      </el-button>
     </div>
 
     <p v-if="isSearchMode" class="tm-attraction-mode-hint">
-      「{{ displayOrUnknown(attractionStore.keyword) }}」的搜索结果,共
-      {{ attractionStore.items.length }} 个已加载
+      {{
+        t('attraction.search_hint', {
+          keyword: displayOrUnknown(attractionStore.keyword),
+          count: attractionStore.items.length,
+        })
+      }}
     </p>
 
     <div v-loading="attractionStore.isLoading" class="tm-attraction-list">
@@ -37,8 +43,8 @@
 
       <EmptyState
         v-else-if="!attractionStore.isLoading"
-        :title="isSearchMode ? '没有找到相关景点' : '暂无景点数据'"
-        :description="attractionStore.error || emptyDescription"
+        :title="emptyTitle"
+        :description="emptyDescription"
       />
     </div>
 
@@ -53,9 +59,11 @@
 <script setup>
 import { Search } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useAttractionStore } from '../../stores/attractions'
 import { displayOrUnknown } from '../../utils/display'
+import { formatLocalizedError } from '../../utils/i18nDisplay'
 import EmptyState from '../common/EmptyState.vue'
 import LoadMoreButton from '../common/LoadMoreButton.vue'
 import AttractionCard from './AttractionCard.vue'
@@ -64,6 +72,7 @@ import AttractionCard from './AttractionCard.vue'
  * 景点 Tab。
  *
  * 默认最多 10 个;关键词搜索时切换为搜索模式(page_size=20)并支持 Load More。
+ * 英文关键词由后端转成中文关键词查高德,前端只负责保留用户输入的原文。
  */
 const props = defineProps({
   city: { type: Object, default: null },
@@ -71,6 +80,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['search'])
+
+const { t } = useI18n()
 
 const attractionStore = useAttractionStore()
 
@@ -80,11 +91,28 @@ const requested = ref(false)
 
 const isSearchMode = computed(() => attractionStore.mode === 'search')
 
-const emptyDescription = computed(() =>
-  isSearchMode.value
-    ? '换一个关键词试试,或点击「返回默认」查看默认推荐景点。'
-    : '当前城市暂时没有可展示的景点数据,请稍后重试。',
+const emptyTitle = computed(() =>
+  isSearchMode.value ? t('attraction.empty_search_title') : t('attraction.empty_default_title'),
 )
+
+/**
+ * 空态描述。
+ *
+ * 后端 / 网络失败时显示本地化错误(按 error_code > detail > 状态码解析),
+ * 只是"真的没有数据"时显示当前语言的引导文案 —— 两者绝不混为一谈。
+ */
+const emptyDescription = computed(() => {
+  if (attractionStore.error) {
+    return formatLocalizedError(attractionStore.error, {
+      t,
+      fallbackKey: isSearchMode.value
+        ? 'attraction.empty_search_desc'
+        : 'attraction.empty_default_desc',
+    })
+  }
+
+  return isSearchMode.value ? t('attraction.empty_search_desc') : t('attraction.empty_default_desc')
+})
 
 /** 列表为空时的兜底:补一次默认 10 景点。 */
 function ensureDefaultLoaded() {

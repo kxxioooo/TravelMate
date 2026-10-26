@@ -4,19 +4,22 @@
       v-model="text"
       class="tm-chat-input-field"
       rows="2"
-      placeholder="问点什么,例如:帮我规划成都三日游"
+      :placeholder="t('chat.input_placeholder')"
       @keydown="handleKeydown"
     />
 
     <div class="tm-chat-input-actions">
-      <span class="tm-chat-input-hint">Enter 发送,Shift + Enter 换行</span>
-      <el-button type="primary" class="tm-chat-send-btn" @click="submitMessage">发送</el-button>
+      <span class="tm-chat-input-hint">{{ t('chat.input_hint') }}</span>
+      <el-button type="primary" class="tm-chat-send-btn" @click="submitMessage">
+        {{ t('chat.send') }}
+      </el-button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   /** 外部草稿(Recommended Prompt 或失败后回填的输入)。 */
@@ -25,6 +28,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['send'])
+
+const { t } = useI18n()
 
 const text = ref('')
 

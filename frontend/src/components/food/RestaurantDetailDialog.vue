@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :model-value="Boolean(detail)"
-    :title="displayOrUnknown(detail?.name)"
+    :title="detailTitle"
     width="620px"
     align-center
     @update:model-value="handleClose"
@@ -17,7 +17,7 @@
           :preview-src-list="photos"
           :initial-index="index"
           preview-teleported
-          alt=""
+          :alt="detailTitle"
         >
           <template #error>
             <div class="tm-restaurant-detail-photo-fallback">
@@ -28,20 +28,20 @@
       </div>
 
       <el-descriptions class="tm-restaurant-detail-info" :column="1" border>
-        <el-descriptions-item label="人均 / 价格">
+        <el-descriptions-item :label="t('restaurant.detail_cost')">
           {{ formatPrice(detail?.cost) }}
         </el-descriptions-item>
 
-        <el-descriptions-item label="地址">
-          {{ displayOrUnknown(detail?.address) }}
+        <el-descriptions-item :label="t('restaurant.detail_address')">
+          {{ addressText }}
         </el-descriptions-item>
 
-        <el-descriptions-item label="评分">
+        <el-descriptions-item :label="t('restaurant.detail_rating')">
           <span v-if="ratingText" class="tm-restaurant-detail-rating">{{ ratingText }}</span>
-          <span v-else>暂无信息</span>
+          <span v-else>{{ t('common.unknown') }}</span>
         </el-descriptions-item>
 
-        <el-descriptions-item label="预订电话">
+        <el-descriptions-item :label="t('restaurant.detail_telephone')">
           {{ displayOrUnknown(detail?.telephone) }}
         </el-descriptions-item>
       </el-descriptions>
@@ -52,13 +52,16 @@
 <script setup>
 import { Picture } from '@element-plus/icons-vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { displayOrUnknown, formatPrice, safePhotoUrls } from '../../utils/display'
+import { displayBilingualAddress, displayBilingualName } from '../../utils/i18nDisplay'
 
 /**
  * 餐厅详情弹窗:人均 / 价格、地址、评分、预订电话。
  *
- * 第三方 API 没给的一律显示"暂无信息",绝不由 DeepSeek 猜。
+ * 英文模式名称与地址是 `English (中文)`;评分、价格、电话等数字 / 事实
+ * 字段保持原值。第三方 API 没给的一律显示当前语言的"暂无信息",绝不猜。
  */
 const props = defineProps({
   detail: { type: Object, default: null },
@@ -67,7 +70,21 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+const { t, locale } = useI18n()
+
 const photos = computed(() => safePhotoUrls(props.detail?.photos))
+
+const detailTitle = computed(
+  () =>
+    displayBilingualName(props.detail?.name, props.detail?.name_en, locale.value) ||
+    displayOrUnknown(null),
+)
+
+const addressText = computed(
+  () =>
+    displayBilingualAddress(props.detail?.address, props.detail?.address_en, locale.value) ||
+    displayOrUnknown(props.detail?.address),
+)
 
 const ratingText = computed(() => {
   const rating = Number(props.detail?.rating)

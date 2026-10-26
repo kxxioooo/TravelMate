@@ -6,13 +6,19 @@
 Route 不自己写 Agent 逻辑:全部委托 agent_service.handle_user_message()。
 两个接口都要求登录,并且先做会话所有权校验(不属于当前用户 -> 404)。
 v0.3 使用普通 HTTP Request/Response,不做流式输出(§22)。
+
+v0.3.1(契约 §1 / §8):
+- locale 优先级 = body.locale > Accept-Language > zh-CN;
+- locale **只影响本次新生成的 assistant 回答**,历史 `messages.content` 永不改写;
+- 返回结构不变(user_message / assistant_message / activities)。
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.api.routes.conversations import _require_owned_conversation
+from app.core.locale import resolve_request_locale
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.chat import ChatMessageResponse, ChatSendRequest, ChatSendResponse
@@ -31,7 +37,10 @@ def get_messages_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ChatMessageResponse]:
-    """读取会话消息(时间正序):先验证会话属于当前用户,再查 messages。"""
+    """读取会话消息(时间正序):先验证会话属于当前用户,再查 messages。
+
+    历史消息一律原样返回:切语言不重写、不批量翻译(契约 §10)。
+    """
     conversation = _require_owned_conversation(db, current_user.id, conversation_id)
     messages = conversation_service.get_conversation_messages(db, conversation.id)
     return [ChatMessageResponse.model_validate(message) for message in messages]
@@ -40,6 +49,7 @@ def get_messages_endpoint(
 @router.post("/{conversation_id}/messages", response_model=ChatSendResponse)
 async def send_message_endpoint(
     payload: ChatSendRequest,
+    request: Request,
     conversation_id: int = Path(..., ge=1),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -56,8 +66,12 @@ async def send_message_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=EMPTY_CONTENT_DETAIL
         )
 
+    locale = resolve_request_locale(request, explicit=payload.locale)
+
     try:
-        result = await agent_service.handle_user_message(db, current_user, conversation, content)
+        result = await agent_service.handle_user_message(
+            db, current_user, conversation, content, locale=locale
+        )
     except (DeepSeekError, agent_service.AgentError) as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=AGENT_UNAVAILABLE_DETAIL
