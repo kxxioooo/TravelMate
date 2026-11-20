@@ -126,11 +126,16 @@ def replace_conversation_cities(
 ) -> Conversation:
     """整组替换该会话的城市(§16.4 / §17.4)。
 
-    先删除旧城市并 flush,再插入新城市:这样即使新旧集合含同一个 adcode,
-    也不会撞上 UNIQUE(conversation_id, adcode)。
+    任务书 §3.1:先用行锁把同一会话的并发编辑串行化(MySQL `SELECT ... FOR UPDATE`),
+    再"先删后插"。这样即使新旧集合含同一 adcode 也不会撞
+    `UNIQUE(conversation_id, adcode)`,并发提交时后提交者覆盖先提交者。
+    SQLite 不支持行锁,SQLAlchemy 会自动忽略该子句,单元测试照常跑。
     """
     pairs = _dedupe_city_pairs(cities)
     try:
+        db.execute(
+            select(Conversation.id).where(Conversation.id == conversation.id).with_for_update()
+        )
         db.execute(
             delete(ConversationCity).where(ConversationCity.conversation_id == conversation.id)
         )

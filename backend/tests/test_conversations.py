@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 API = "/api/v1"
 
 CHENGDU = {"city_name": "成都", "adcode": "510100"}
-CHONGQING = {"city_name": "重庆", "adcode": "500000"}
+CHONGQING = {"city_name": "重庆", "adcode": "500100"}
 HANGZHOU = {"city_name": "杭州", "adcode": "330100"}
 WUHAN = {"city_name": "武汉", "adcode": "420100"}
 
@@ -62,7 +62,8 @@ def test_create_conversation_with_multiple_cities(client_fixture, user_payload_f
     body = _create(client_fixture, [CHENGDU, CHONGQING, WUHAN])
 
     assert body["cities"] == [CHENGDU, CHONGQING, WUHAN]
-    assert [city["adcode"] for city in body["cities"]] == ["510100", "500000", "420100"]
+    # 任务书 §3.1:落库的 adcode 一律是城市目录里的规范值
+    assert [city["adcode"] for city in body["cities"]] == ["510100", "500100", "420100"]
 
 
 def test_list_only_current_users_conversations(create_test_app, client_fixture, user_payload_fixture):

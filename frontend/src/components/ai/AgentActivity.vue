@@ -28,6 +28,18 @@ defineProps({
 
 const { t, te, locale } = useI18n()
 
+/**
+ * 受控拒绝的具体原因 -> i18n key(任务书 §3.3 的稳定错误码)。
+ *
+ * 这些都不再是"城市未加入会话",而是"城市没解析出来":
+ * 同名多城 / 目录里没有 / 根本没说城市。
+ */
+const REJECT_REASON_KEYS = {
+  CITY_AMBIGUOUS: 'activity.agent.tool_rejected_ambiguous',
+  CITY_UNKNOWN: 'activity.agent.tool_rejected_unknown',
+  CITY_REQUIRED: 'activity.agent.tool_rejected_required',
+}
+
 /** success -> ✓ / running -> ● / error -> ! */
 function activityLabel(activity) {
   const status = activity?.status
@@ -70,6 +82,7 @@ function activityParams(activity) {
  *
  * 有 `code` 就按 `activity.<code>` 本地化(契约 §4),
  * `agent.food_found` 带 keyword 时用"相关餐厅"变体;
+ * `agent.tool_rejected` 会再看 `params.error_code`,给出城市歧义/未知/缺失的精确说法;
  * 没有 code(老后端)才退回后端 `text`,绝不凭空造活动。
  */
 function activityText(activity) {
@@ -77,10 +90,17 @@ function activityText(activity) {
 
   if (code) {
     const params = activityParams(activity)
-    const key =
-      code === 'agent.food_found' && params.keyword
-        ? 'activity.agent.food_found_keyword'
-        : `activity.${code}`
+    let key = `activity.${code}`
+
+    if (code === 'agent.food_found' && params.keyword) {
+      key = 'activity.agent.food_found_keyword'
+    } else if (code === 'agent.tool_rejected') {
+      const reason = String(activity?.params?.error_code ?? '').trim()
+      const variant = REJECT_REASON_KEYS[reason]
+      if (variant && te(variant)) {
+        key = variant
+      }
+    }
 
     if (te(key)) {
       return t(key, params)

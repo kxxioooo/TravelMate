@@ -36,7 +36,9 @@ from app.services import (
 )
 
 CHENGDU = {"city_name": "成都", "adcode": "510100"}
-CHONGQING = {"city_name": "重庆", "adcode": "500000"}
+#: 任务书 §3.2 起以城市目录为准;目录里直辖市的市级 adcode 是 500100
+CHONGQING = {"city_name": "重庆", "adcode": "500100"}
+SHANGHAI = {"city_name": "上海", "adcode": "310100"}
 
 
 @pytest.fixture
@@ -143,45 +145,82 @@ def test_get_weather_tool_for_selected_city(monkeypatch, db_session):
     result = _run("get_weather", {"city_name": "重庆"}, context)
 
     assert result["ok"] is True
-    # 用的是 Conversation 里那个城市的 adcode,而不是城市名
-    assert calls == ["500000"]
+    # 用的是城市目录里的规范 adcode(以目录为准,不信任客户端/会话里存的名称)
+    assert calls == ["500100"]
     assert result["data"]["city_name"] == "重庆"
-    assert result["data"]["adcode"] == "500000"
+    assert result["data"]["adcode"] == "500100"
     assert result["data"]["weather"]["weather"] == "多云"
     assert result["data"]["weather"]["temperature"] == 18.0
     assert result["data"]["clothing_advice"] == "薄外套"
 
 
-def test_get_weather_rejects_unselected_city(monkeypatch, db_session):
+def test_weather_supports_any_catalog_city(monkeypatch, db_session):
+    """任务书 §3.3:会话标签是软上下文,不是查询白名单。
+
+    绑着成都也能问上海;只要目录里有,就真的要查,而且**不改动会话标签**。
+    """
     user, conversation, context = _make_context(db_session, [CHENGDU])
+    calls = []
 
-    async def should_not_be_called(adcode):
-        raise AssertionError("未选择城市时绝不能调用天气服务")
+    async def fake_get_city_weather(adcode):
+        calls.append(adcode)
+        return _weather_response()
 
-    monkeypatch.setattr(weather_service, "get_city_weather", should_not_be_called)
+    monkeypatch.setattr(weather_service, "get_city_weather", fake_get_city_weather)
 
-    rejected = _run("get_weather", {"city_name": "上海"}, context)
+    result = _run("get_weather", {"city_name": "上海"}, context)
 
-    assert rejected == {
-        "ok": False,
-        "data": None,
-        "error": "当前对话未选择该城市,请先选择城市或明确调整会话城市。",
-    }
+    assert result["ok"] is True
+    assert calls == ["310100"]
+    assert result["data"]["city_name"] == "上海"
+    assert result["data"]["adcode"] == "310100"
+
     # 绝不偷偷把城市加进会话
+    db_session.expire_all()
     refreshed = conversation_service.get_owned_conversation(db_session, user.id, conversation.id)
     assert [city.city_name for city in refreshed.cities] == ["成都"]
     assert db_session.query(ConversationCity).count() == 1
 
-    # 缺少城市参数是另一个受控错误
-    assert _run("get_weather", {}, context)["error"] == agent_tools.MISSING_CITY_MESSAGE
 
-    # 景点 / 美食工具同样遵守"城市必须已在会话里"
-    assert _run("search_attractions", {"city_name": "上海"}, context)["error"] == (
-        agent_tools.UNSELECTED_CITY_MESSAGE
-    )
-    assert _run("search_food", {"city_name": "上海", "keyword": "火锅"}, context)["error"] == (
-        agent_tools.UNSELECTED_CITY_MESSAGE
-    )
+def test_city_resolution_failures_are_controlled(monkeypatch, db_session):
+    """城市解析失败必须是受控错误 + 稳定错误码,且绝不调用外部服务。"""
+    calls = []
+
+    async def fake_weather(adcode):
+        calls.append(adcode)
+        return _weather_response()
+
+    monkeypatch.setattr(weather_service, "get_city_weather", fake_weather)
+
+    user, conversation, context = _make_context(db_session, [CHENGDU])
+
+    # 1) 目录里没有的城市 -> CITY_UNKNOWN
+    unknown = _run("get_weather", {"city_name": "火星基地"}, context)
+    assert unknown["ok"] is False
+    assert unknown["error_code"] == agent_tools.ERROR_CITY_UNKNOWN
+
+    # 2) 同名多城(Taizhou:台州/泰州)-> CITY_AMBIGUOUS + 候选
+    ambiguous = _run("get_weather", {"city_name": "taizhou"}, context)
+    assert ambiguous["ok"] is False
+    assert ambiguous["error_code"] == agent_tools.ERROR_CITY_AMBIGUOUS
+    assert len(ambiguous["candidates"]) >= 2
+
+    # 失败路径不该碰外部服务
+    assert calls == []
+
+    # 3) 唯一标签 + 未指定城市 -> 用标签作默认(软上下文)
+    defaulted = _run("get_weather", {}, context)
+    assert defaulted["ok"] is True
+    assert defaulted["data"]["city_name"] == "成都"
+    assert calls == ["510100"]
+
+    # 4) 同一用户另开一个「两个标签」的会话 -> 未指定城市时必须先澄清
+    multi = conversation_service.create_conversation(db_session, user.id, [CHENGDU, CHONGQING])
+    multi_context = agent_service.build_agent_context(db_session, user.id, multi)
+    required = _run("get_weather", {}, multi_context)
+    assert required["ok"] is False
+    assert required["error_code"] == agent_tools.ERROR_CITY_REQUIRED
+    assert len(required["candidates"]) == 2
 
 
 def test_search_attractions_tool(monkeypatch, db_session):

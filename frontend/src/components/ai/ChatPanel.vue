@@ -50,6 +50,13 @@
         <ul class="tm-chat-welcome-list">
           <li v-for="key in WELCOME_EXAMPLE_KEYS" :key="key">{{ t(key) }}</li>
         </ul>
+        <!-- 任务书 §3.4:显式的"新建对话(城市可选)"入口,不再只有顶部小按钮 -->
+        <div class="tm-chat-welcome-actions">
+          <el-button class="tm-welcome-new-chat" type="primary" @click="openNewConversation">
+            {{ t('chat.welcome_cta') }}
+          </el-button>
+          <span class="tm-chat-welcome-hint">{{ t('chat.welcome_cta_hint') }}</span>
+        </div>
       </div>
 
       <MessageList v-show="hasActiveConversation" :messages="chatStore.messages" @retry="handleSend" />
@@ -73,14 +80,16 @@
       :model-value="dialogs.mode !== null"
       :mode="dialogs.mode ?? 'create'"
       :initial-cities="activeConversationCities"
-      @update:model-value="dialogs.mode = null"
+      :conversation-id="activeConversationId"
+      @update:model-value="handleDialogVisibility"
       @created="handleConversationSelected"
+      @updated="handleConversationUpdated"
     />
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useChatStore } from '../../stores/chat'
@@ -118,6 +127,17 @@ const chatStore = useChatStore()
 const dialogs = reactive({ mode: null })
 
 const hasActiveConversation = computed(() => Boolean(conversationStore.activeConversation))
+
+/** 编辑城市的目标会话 ID:按 ID 提交,避免改错会话(任务书 §3.4)。 */
+const activeConversationId = computed(() => conversationStore.activeConversation?.id ?? null)
+
+/**
+ * 首次发送时暂存的原文(任务书 §3.4)。
+ *
+ * 没有 active 会话时不再静默建一个空城市会话,而是打开创建弹窗让用户
+ * 确认城市(可不选);创建成功后只发送一次。取消则放弃发送、输入框内容保留。
+ */
+const pendingDraft = ref(null)
 
 /** §40 这里读的是 Conversation 的城市,与 cityStore.selectedCity 完全无关。 */
 const activeConversationCities = computed(() => conversationStore.activeConversation?.cities ?? [])
@@ -161,14 +181,43 @@ function openConversationDrawer() {
   conversationStore.drawerVisible = true
 }
 
-/** §25.1 打开 New Chat 对话框。 */
+/** §25.1 打开 New Chat 对话框(用户主动新建,不携带待发送文本)。 */
 function openNewConversation() {
+  pendingDraft.value = null
   dialogs.mode = 'create'
 }
 
-/** §25.1 切换 active Conversation(消息由 store 重新拉取,先清空再拉)。 */
+/** 弹窗关闭:清掉待发送标记(取消时输入框内容本身不动)。 */
+function handleDialogVisibility(visible) {
+  if (!visible) {
+    dialogs.mode = null
+    pendingDraft.value = null
+  }
+}
+
+/** 在指定会话里发送一条文本,失败则把原文放回输入框。 */
+async function sendInConversation(conversationId, text) {
+  chatStore.clearDraftPrompt()
+
+  const result = await chatStore.sendUserMessage(conversationId, text)
+
+  if (!result) {
+    // 失败:把用户输入放回输入框,失败气泡也保留,两种方式都能重试。
+    chatStore.setDraftPrompt(text)
+  }
+}
+
+/**
+ * 新建成功后接管会话(§25.1)。
+ *
+ * 任务书 §3.4:如果是"首次发送"触发的创建,创建成功后**只发送一次**原文。
+ * pendingDraft 在第一个 await 之前同步取走,避免被随后的关闭事件清空。
+ */
 async function handleConversationSelected(conversation) {
   const id = conversation?.id
+  const draft = pendingDraft.value
+
+  pendingDraft.value = null
 
   if (id === null || id === undefined) {
     return
@@ -176,38 +225,44 @@ async function handleConversationSelected(conversation) {
 
   await conversationStore.openConversation(id)
   conversationStore.closeConversationDrawer()
+
+  if (draft) {
+    await sendInConversation(id, draft)
+  }
+}
+
+/**
+ * 编辑会话城市成功(任务书 §3.4)。
+ *
+ * 只关闭弹窗:标签已由 store 按会话 ID 更新;绝不清空聊天、不自动发消息、
+ * 也不碰 cityStore(页面浏览城市与会话城市是两套状态,§40)。
+ */
+function handleConversationUpdated() {
+  conversationStore.closeConversationDrawer()
 }
 
 /**
  * §25.1 handleSend():
- * 没有 active Conversation 时先自动创建一个 cities=[] 的新会话再发送,
- * 用户不需要为了随口问一句先手动 New Chat。
+ * - 有 active 会话:直接在该会话里发送;
+ * - 没有 active 会话:打开创建弹窗(城市可选),创建成功后只发一次;
+ * - 会话城市正在保存时禁止发送,避免发出"旧城市快照"的问题。
  */
 async function handleSend(content) {
   const text = String(content ?? '').trim()
 
-  if (!text || chatStore.isSending) {
+  if (!text || chatStore.isSending || conversationStore.isSavingCities) {
     return
   }
 
-  let conversation = conversationStore.activeConversation
+  const conversation = conversationStore.activeConversation
 
   if (!conversation) {
-    conversation = await conversationStore.createNewConversation([])
-  }
-
-  if (!conversation) {
+    pendingDraft.value = text
+    dialogs.mode = 'create'
     return
   }
 
-  chatStore.clearDraftPrompt()
-
-  const result = await chatStore.sendUserMessage(conversation.id, text)
-
-  if (!result) {
-    // 失败:把用户输入放回输入框,失败气泡也保留,两种方式都能重试。
-    chatStore.setDraftPrompt(text)
-  }
+  await sendInConversation(conversation.id, text)
 }
 
 /** §25.1 applyRecommendedPrompt():只填入,不自动发送(§39)。 */
@@ -365,6 +420,19 @@ defineExpose({ applyRecommendedPrompt })
   padding-left: 18px;
   margin: 0;
   font-size: 13px;
+  color: var(--tm-muted);
+}
+
+.tm-chat-welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.tm-chat-welcome-hint {
+  font-size: 12.5px;
   color: var(--tm-muted);
 }
 

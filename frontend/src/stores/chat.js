@@ -46,6 +46,15 @@ export const useChatStore = defineStore('chat', {
     draftPrompt: '',
     isSending: false,
     error: null,
+    /**
+     * 当前激活会话 ID(任务书 §3.4)。
+     *
+     * 迟到响应必须同时满足"序号最新"且"会话仍是当前会话"才允许落地,
+     * 光靠清空 messages 不足以防止串会话。
+     */
+    activeConversationId: null,
+    /** 请求序号:每次加载/发送自增,只有最新一次请求的结果会被采纳。 */
+    requestSeq: 0,
   }),
 
   actions: {
@@ -54,15 +63,20 @@ export const useChatStore = defineStore('chat', {
      *
      * 无论成功失败都先把 messages 置空,再替换 —— 绝不在切换会话时
      * 让上一条会话的消息短暂可见。历史 content 不翻译。
+     * 任务书 §3.4:再用请求序号 + 会话 ID 双重校验,丢弃迟到响应。
      */
     async loadMessages(conversationId) {
+      const token = ++this.requestSeq
+
       if (conversationId === null || conversationId === undefined || conversationId === '') {
+        this.activeConversationId = null
         this.messages = []
         this.activities = []
         this.error = null
         return []
       }
 
+      this.activeConversationId = conversationId
       this.messages = []
       this.activities = []
       this.error = null
@@ -70,11 +84,20 @@ export const useChatStore = defineStore('chat', {
 
       try {
         const data = await getMessages(conversationId)
+
+        if (token !== this.requestSeq || this.activeConversationId !== conversationId) {
+          return this.messages
+        }
+
         this.messages = (Array.isArray(data) ? data : [])
           .map((item, index) => normalizeMessage(item, `message-${index}`))
           .filter(Boolean)
         return this.messages
       } catch (error) {
+        if (token !== this.requestSeq || this.activeConversationId !== conversationId) {
+          return this.messages
+        }
+
         this.messages = []
         this.error = toErrorInfo(error)
         return []
@@ -101,6 +124,13 @@ export const useChatStore = defineStore('chat', {
         return null
       }
 
+      // 任务书 §3.4:只允许给当前激活会话发消息,避免消息落到别的会话
+      if (this.activeConversationId !== null && this.activeConversationId !== conversationId) {
+        return null
+      }
+
+      this.activeConversationId = conversationId
+      const token = ++this.requestSeq
       this.error = null
       // 2. isSending = true
       this.isSending = true
@@ -115,6 +145,15 @@ export const useChatStore = defineStore('chat', {
        */
       let streamToken = this.messages
 
+      /**
+       * 迟到判定(任务书 §3.4):序号被更新、会话已切换、或 messages 被整体替换,
+       * 三者任一发生就说明这次响应已经过期,一律丢弃。
+       */
+      const isStale = () =>
+        token !== this.requestSeq ||
+        this.activeConversationId !== conversationId ||
+        this.messages !== streamToken
+
       // 4. 显示真实的等待状态(不是伪造的工具调用,只是本地 UI 状态)
       this.activities = [{ type: 'agent', status: 'running', code: 'agent.thinking', params: null, text: '' }]
 
@@ -122,7 +161,7 @@ export const useChatStore = defineStore('chat', {
         // 5. POST backend
         const data = await sendMessage(conversationId, text)
 
-        if (this.messages !== streamToken) {
+        if (isStale()) {
           return null
         }
 
@@ -149,7 +188,7 @@ export const useChatStore = defineStore('chat', {
 
         return data
       } catch (error) {
-        if (this.messages !== streamToken) {
+        if (isStale()) {
           return null
         }
 
@@ -164,7 +203,7 @@ export const useChatStore = defineStore('chat', {
         return null
       } finally {
         // 9. isSending = false(若期间已切换会话,由 loadMessages 负责复位)
-        if (this.messages === streamToken) {
+        if (!isStale()) {
           this.isSending = false
         }
       }
@@ -182,6 +221,9 @@ export const useChatStore = defineStore('chat', {
 
     /** §24.5 新建 / 切换 Conversation 时清空当前会话的聊天状态。 */
     clearChatState() {
+      // 序号自增 = 让所有在途请求立即失效(任务书 §3.4)
+      this.requestSeq += 1
+      this.activeConversationId = null
       this.messages = []
       this.activities = []
       this.error = null

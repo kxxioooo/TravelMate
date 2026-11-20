@@ -234,7 +234,9 @@ export default {
     new_chat: 'New Chat',
     welcome_title: 'Start a new travel conversation',
     welcome_text:
-      'Just ask — if there is no conversation yet, one will be created for you automatically. You can also click "New Chat" to pick the cities for this chat (0, 1 or several are all fine).',
+      'Just ask — on the first send we ask you to confirm the cities for this chat (0, 1 or several are all fine) instead of silently creating an empty-city conversation.',
+    welcome_cta: 'New chat (cities optional)',
+    welcome_cta_hint: 'Or just type below — we will ask for cities on the first send.',
     welcome_example_1: 'Plan a three-day trip to Chengdu for me',
     welcome_example_2: 'Recommend cities for nature lovers',
     welcome_example_3: 'Where can I go with a budget of 3000 CNY?',
@@ -280,6 +282,7 @@ export default {
     open_failed: 'Failed to open the conversation, please try again later',
     detail_invalid: 'The conversation payload is invalid, please try again later',
     update_cities_failed: 'Failed to update conversation cities, please try again later',
+    update_cities_invalid: 'The server did not confirm this city change, please retry',
   },
 
   activity: {
@@ -291,7 +294,10 @@ export default {
       attractions_found: 'Attractions found for {city}',
       food_found: 'Food found for {city}',
       food_found_keyword: 'Restaurants for "{keyword}" found in {city}',
-      tool_rejected: 'This city is not part of the conversation, so the query was rejected',
+      tool_rejected: 'Could not determine which city to query, asked the user to confirm',
+      tool_rejected_ambiguous: 'This city name matches several cities and needs confirmation',
+      tool_rejected_unknown: 'This city is not in the supported city list',
+      tool_rejected_required: 'No city was specified, the user needs to name one',
       tool_failed: 'Query failed',
     },
   },
@@ -335,7 +341,7 @@ export default {
     },
     agent: {
       failed: 'The AI assistant cannot answer right now, please try again later',
-      tool_rejected: 'The query was rejected, please check the conversation cities',
+      tool_rejected: 'Could not determine which city to query, please name or confirm it',
     },
     translation: {
       unavailable: 'Translation service is temporarily unavailable; original name is shown',

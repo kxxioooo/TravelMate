@@ -102,16 +102,17 @@ def get_conversation_endpoint(
 
 @router.put("/{conversation_id}/cities", response_model=ConversationDetail)
 def update_conversation_cities_endpoint(
+    payload: ConversationUpdateCitiesRequest,
     conversation_id: int = Path(..., ge=1),
-    payload: Optional[ConversationUpdateCitiesRequest] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ConversationDetail:
     """整组替换会话城市:先删原城市再写入新的 0~N 个(按 adcode 去重)。
 
-    不带 body(或 `{"cities": []}`)表示清空该会话的城市。
+    任务书 §3.1:`cities` 必须**显式**给出(空数组 = 清空)。
+    漏传 body 或漏传 `cities` 一律 422,避免"忘记带 body"被误解成清空城市。
     """
     conversation = _require_owned_conversation(db, current_user.id, conversation_id)
-    cities = payload.cities if payload is not None else []
+    cities = payload.cities
     conversation = conversation_service.replace_conversation_cities(db, conversation, cities)
     return _to_detail(conversation)

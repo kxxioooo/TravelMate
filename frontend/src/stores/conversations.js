@@ -83,6 +83,8 @@ export const useConversationStore = defineStore('conversations', {
     activeConversation: null,
     drawerVisible: false,
     isLoading: false,
+    /** 正在保存会话城市:期间禁止同会话重复提交与发送(任务书 §3.4)。 */
+    isSavingCities: false,
   }),
 
   actions: {
@@ -173,41 +175,67 @@ export const useConversationStore = defineStore('conversations', {
     },
 
     /**
-     * §18.4 修改当前会话的绑定城市。
+     * §18.4 / 任务书 §3.4 修改**指定会话**的绑定城市。
      *
-     * 先本地乐观更新,再用后端返回值覆盖 —— 这样点击确认后
-     * `.tm-conversation-cities` 会立即刷新,不会等一个网络往返。
-     * 这里绝不触碰 cityStore:页面浏览城市由用户自己控制(§40)。
+     * 关键约束(来自任务书,都是踩过的坑):
+     * - 必须按会话 ID 更新:编辑的可能是抽屉里非当前会话,迟到响应绝不能改写别的会话;
+     * - 乐观更新只动这一条,响应只在 ID 匹配时落地,否则视为失败并回滚;
+     * - 失败一律回滚并弹错,**不以乐观状态冒充成功**;
+     * - 保存期间置 isSavingCities,由界面禁止同会话并发提交 / 发送。
      */
-    async updateCities(cities = []) {
-      const active = this.activeConversation
-      if (!active) {
+    async updateCities(conversationId, cities = []) {
+      const targetId = conversationId ?? this.activeConversation?.id
+
+      if (targetId === null || targetId === undefined || targetId === '') {
         return null
       }
 
+      const previousTarget = this.items.find((item) => item.id === targetId) ?? null
+      const previousActiveCities =
+        this.activeConversation?.id === targetId ? this.activeConversation.cities : null
       const normalized = normalizeCities(cities)
-      this.activeConversation = { ...active, cities: normalized }
-      this.isLoading = true
+
+      const restore = () => {
+        if (previousTarget) {
+          this.items = this.items.map((item) => (item.id === targetId ? previousTarget : item))
+        }
+        if (this.activeConversation?.id === targetId && previousActiveCities) {
+          this.activeConversation = { ...this.activeConversation, cities: previousActiveCities }
+        }
+      }
+
+      // 乐观更新:只动这一个会话,以及恰好是它的 active
+      this.items = this.items.map((item) =>
+        item.id === targetId ? { ...item, cities: normalized } : item,
+      )
+      if (this.activeConversation?.id === targetId) {
+        this.activeConversation = { ...this.activeConversation, cities: normalized }
+      }
+      this.isSavingCities = true
 
       try {
-        const data = await updateConversationCities(active.id, normalized)
+        const data = await updateConversationCities(targetId, normalized)
         const conversation = normalizeConversation(data)
 
-        if (!conversation) {
-          return this.activeConversation
+        // 响应无效或不是本次编辑的那个会话:不采信,回滚
+        if (!conversation || conversation.id !== targetId) {
+          restore()
+          ElMessage.error(translate('conversation.update_cities_invalid'))
+          return null
         }
 
-        this.activeConversation = conversation
         this.items = this.items.map((item) => (item.id === conversation.id ? conversation : item))
+        if (this.activeConversation?.id === conversation.id) {
+          this.activeConversation = conversation
+        }
 
         return conversation
       } catch (error) {
         ElMessage.error(resolveErrorMessage(error, 'conversation.update_cities_failed'))
-        // 回滚到修改前的城市,避免界面显示一个后端并不认可的状态。
-        this.activeConversation = active
+        restore()
         return null
       } finally {
-        this.isLoading = false
+        this.isSavingCities = false
       }
     },
 
@@ -227,6 +255,7 @@ export const useConversationStore = defineStore('conversations', {
       this.activeConversation = null
       this.drawerVisible = false
       this.isLoading = false
+      this.isSavingCities = false
     },
   },
 })

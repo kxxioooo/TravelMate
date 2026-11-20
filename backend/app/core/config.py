@@ -62,6 +62,26 @@ class Settings(BaseSettings):
     translation_timeout_seconds: float = 20.0
     translation_max_retries: int = 1
 
+    # 任务书 §3.1:单个会话最多绑定多少个城市标签(0/1/多都合法,只是有上限)。
+    conversation_city_max_count: int = 20
+
+    # 任务书 §4 / §5:记忆与跨会话检索的授权、预算与开关。
+    # 默认全部关闭 —— 用户主动授权后才会把历史/画像注入模型上下文。
+    memory_feature_enabled: bool = True
+    memory_history_default_enabled: bool = False
+    memory_profile_learning_default_enabled: bool = False
+    memory_history_lookback_days: int = 180
+    memory_history_candidate_limit: int = 500
+    memory_history_top_k: int = 5
+    memory_history_per_conversation_limit: int = 2
+    memory_history_excerpt_max_chars: int = 300
+    memory_profile_max_chars: int = 600
+    memory_context_max_chars: int = 2500
+    memory_model_input_token_budget: int = 8000
+
+    # 任务书 §7:本轮只预留 RAG 契约,不实现检索。
+    rag_enabled: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

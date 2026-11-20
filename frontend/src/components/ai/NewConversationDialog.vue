@@ -52,9 +52,11 @@ import ConversationCitySelector from './ConversationCitySelector.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  /** create:新建会话;edit:修改当前会话城市(§45)。 */
+  /** create:新建会话;edit:修改指定会话城市(任务书 §3.4)。 */
   mode: { type: String, default: 'create' },
   initialCities: { type: Array, default: () => [] },
+  /** 编辑目标会话 ID:按 ID 提交,避免改错会话(任务书 §3.4)。 */
+  conversationId: { type: [Number, String], default: null },
 })
 
 const emit = defineEmits(['update:modelValue', 'created', 'updated'])
@@ -115,8 +117,9 @@ async function handleCreate() {
   isSubmitting.value = true
 
   try {
+    // 编辑模式必须带上目标会话 ID:迟到/并发响应只作用于那一个会话。
     const conversation = isEdit.value
-      ? await conversationStore.updateCities(cities)
+      ? await conversationStore.updateCities(props.conversationId, cities)
       : await conversationStore.createNewConversation(cities)
 
     // 失败时保持弹窗打开,用户可以直接重试。
@@ -132,8 +135,12 @@ async function handleCreate() {
   }
 }
 
-/** §20.3 取消:关闭并重置。 */
+/** §20.3 取消:关闭并重置;保存过程中不允许关闭,避免半途改一半。 */
 function handleCancel() {
+  if (isSubmitting.value) {
+    return
+  }
+
   emit('update:modelValue', false)
   resetForm()
 }

@@ -736,10 +736,11 @@ def test_activity_code_and_params_in_english_mode(
         "params": {"city_name": "成都", "city_adcode": "510100"},
         "text": "已查询成都天气",  # v0.3 中文原文仅作向后兼容
     }
-    # 未选城市 -> 受控拒绝,而不是伪造成功;params 里的城市仍是原始中文
-    assert activities[1]["code"] == "agent.tool_rejected"
-    assert activities[1]["status"] == "error"
-    assert activities[1]["params"] == {"city_name": "上海"}
+    # 任务书 §3.3:会话标签是软上下文,不在标签里的上海照样要真的查(不再拒绝)
+    assert activities[1]["code"] == "agent.weather_found"
+    assert activities[1]["status"] == "success"
+    assert activities[1]["params"]["city_name"] == "上海"
+    assert activities[1]["params"]["city_adcode"] == "310100"
 
     # 英文 locale 用的是英文 system prompt,并要求 English (中文) 形式与双语字段
     system_prompt = seen[0][0]["content"]
@@ -750,6 +751,39 @@ def test_activity_code_and_params_in_english_mode(
     assert seen[0][-1]["content"] == "What is the weather like in Chengdu?"
     messages = client_fixture.get(f"{API}/conversations/{conversation['id']}/messages").json()
     assert messages[0]["content"] == "What is the weather like in Chengdu?"
+
+
+def test_activity_rejected_carries_error_code_and_candidates(
+    monkeypatch, no_lexicon, client_fixture, user_payload_fixture
+):
+    """城市解析失败时,Activity 走 tool_rejected 并带上 error_code 与候选。
+
+    任务书 §3.3 之后,"未选城市"不再是拒绝原因;真正会被拒绝的是
+    同名多城(台州/泰州)、目录里没有的城市,以及多标签未指定城市。
+    """
+    _register(client_fixture, user_payload_fixture)
+    conversation = client_fixture.post(f"{API}/conversations", json={"cities": [CHENGDU]}).json()
+
+    responses = [
+        _tool_call_response(
+            _tool_call("call_ambiguous", "get_weather", {"city_name": "taizhou"}),
+        ),
+        _final_text_response("Which Taizhou do you mean?"),
+    ]
+    _patch_chat_completion(monkeypatch, responses)
+    _patch_city_weather(monkeypatch)
+
+    body = client_fixture.post(
+        f"{API}/conversations/{conversation['id']}/messages",
+        json={"content": "What is the weather in Taizhou?", "locale": "en-US"},
+    ).json()
+
+    activity = body["activities"][0]
+    assert activity["code"] == "agent.tool_rejected"
+    assert activity["status"] == "error"
+    assert activity["params"]["error_code"] == "CITY_AMBIGUOUS"
+    # 候选城市带给前端,便于提示"你想问的是哪一个"
+    assert len(activity["params"]["candidates"]) >= 2
 
 
 def test_default_locale_keeps_chinese_prompt(monkeypatch, no_lexicon, client_fixture, user_payload_fixture):

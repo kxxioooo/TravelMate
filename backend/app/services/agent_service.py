@@ -81,10 +81,12 @@ ACTIVITY_SUCCESS_CODES: dict[str, str] = {
     agent_tools.TOOL_SEARCH_FOOD: ACTIVITY_CODE_FOOD_FOUND,
 }
 
-#: 这些工具错误属于"受控拒绝"(参数/城市边界),其余算执行失败(契约 §4)
+#: 这些工具错误属于"受控拒绝"(需要澄清城市 / 参数问题),其余算执行失败(契约 §4)。
+#: 任务书 §3.3 之后不再有"该城市未加入当前会话"这种拒绝,改成三种城市解析失败。
 ACTIVITY_REJECTED_MESSAGES: tuple[str, ...] = (
-    agent_tools.UNSELECTED_CITY_MESSAGE,
-    agent_tools.MISSING_CITY_MESSAGE,
+    agent_tools.CITY_REQUIRED_MESSAGE,
+    agent_tools.CITY_AMBIGUOUS_MESSAGE,
+    agent_tools.CITY_UNKNOWN_MESSAGE,
     agent_tools.INVALID_ARGUMENTS_MESSAGE,
 )
 
@@ -245,6 +247,18 @@ def build_activity(
     if not is_ok:
         error_text = _clean_str(result.get("error")) or ""
         rejected = any(message and message in error_text for message in ACTIVITY_REJECTED_MESSAGES)
+        # 把机器可读的错误码与候选城市带给前端,i18n 才能给出精确提示
+        error_code = _clean_str(result.get("error_code"))
+        if error_code:
+            params = {**params, "error_code": error_code}
+        candidates = result.get("candidates")
+        if isinstance(candidates, Sequence) and candidates and not isinstance(candidates, str):
+            params = {
+                **params,
+                "candidates": [
+                    item for item in candidates if isinstance(item, Mapping)
+                ][:5],
+            }
         return {
             "type": activity_type,
             "status": ACTIVITY_STATUS_ERROR,

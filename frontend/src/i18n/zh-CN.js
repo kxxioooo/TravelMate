@@ -236,7 +236,9 @@ export default {
     new_chat: '新建会话',
     welcome_title: '开始一段新的旅行对话',
     welcome_text:
-      '直接提问就行 —— 还没有会话时我会自动为你创建一个。也可以点「新建会话」选择这次要聊的城市(0 个 / 1 个 / 多个都可以)。',
+      '直接提问就行 —— 第一次发送时会先让你确认这次要聊的城市(0 个 / 1 个 / 多个都可以),不会静默替你建一个空会话。',
+    welcome_cta: '新建会话(城市可选)',
+    welcome_cta_hint: '也可以在下面直接输入,首次发送会弹出城市选择。',
     welcome_example_1: '帮我规划成都三日游',
     welcome_example_2: '推荐适合自然风景爱好者的城市',
     welcome_example_3: '预算 3000 元去哪里玩?',
@@ -281,6 +283,7 @@ export default {
     open_failed: '会话打开失败,请稍后重试',
     detail_invalid: '会话详情返回数据异常,请稍后重试',
     update_cities_failed: '会话城市更新失败,请稍后重试',
+    update_cities_invalid: '服务端没有确认这次城市修改,请重试',
   },
 
   activity: {
@@ -292,7 +295,10 @@ export default {
       attractions_found: '已找到 {city} 景点数据',
       food_found: '已找到 {city} 美食数据',
       food_found_keyword: '已找到 {city}「{keyword}」相关餐厅',
-      tool_rejected: '该城市未加入当前会话,查询被拒绝',
+      tool_rejected: '没能确定要查哪个城市,已请用户确认',
+      tool_rejected_ambiguous: '城市名对应多个城市,需要确认是哪一个',
+      tool_rejected_unknown: '当前城市目录里没有这个城市',
+      tool_rejected_required: '还没有指定城市,需要用户补充城市名',
       tool_failed: '查询失败',
     },
   },
@@ -336,7 +342,7 @@ export default {
     },
     agent: {
       failed: 'AI 助手暂时无法回答,请稍后重试',
-      tool_rejected: '该查询被拒绝,请检查当前会话城市',
+      tool_rejected: '没能确定要查哪个城市,请补充或确认城市名',
     },
     translation: {
       unavailable: '翻译服务暂时不可用,已展示原始名称',
