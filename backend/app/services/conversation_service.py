@@ -157,6 +157,34 @@ def replace_conversation_cities(
     return conversation
 
 
+def get_recent_messages(
+    db: Session,
+    conversation_id: int,
+    *,
+    user_id: Optional[int] = None,
+    limit: int = 30,
+    before_message_id: Optional[int] = None,
+) -> list[Message]:
+    """取"某条消息之前"的最近 N 条历史(任务书 §6.3)。
+
+    为什么不用 ``history[:-1]``:并发下列表最后一条不一定是刚保存的那条,
+    显式用 ``before_message_id`` 才能保证不重复、不错位。
+    给了 ``user_id`` 时会 join conversations 校验归属(禁止裸查)。
+    """
+    stmt = select(Message).where(Message.conversation_id == conversation_id)
+    if user_id is not None:
+        stmt = stmt.join(Conversation, Conversation.id == Message.conversation_id).where(
+            Conversation.user_id == user_id
+        )
+    if before_message_id is not None:
+        stmt = stmt.where(Message.id < before_message_id)
+
+    stmt = stmt.order_by(Message.id.desc()).limit(max(1, limit))
+    rows = list(db.scalars(stmt))
+    rows.reverse()
+    return rows
+
+
 def get_conversation_messages(
     db: Session, conversation_id: int, limit: Optional[int] = None
 ) -> list[Message]:

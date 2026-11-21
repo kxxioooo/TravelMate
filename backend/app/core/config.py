@@ -8,6 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote_plus
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # app/core/config.py -> backend/app/core/config.py
@@ -79,8 +80,58 @@ class Settings(BaseSettings):
     memory_context_max_chars: int = 2500
     memory_model_input_token_budget: int = 8000
 
-    # 任务书 §7:本轮只预留 RAG 契约,不实现检索。
+    # 任务书 §7 / 《RAG》§12.1:知识增强的总开关与各路径开关。
+    # 默认全关:索引与 API 就绪后再逐级开启;关闭时必须无缝退回原有聊天。
     rag_enabled: bool = False
+    rag_local_enabled: bool = True
+    rag_web_enabled: bool = False
+    rag_memory_enabled: bool = True
+
+    # Embedding:默认真实的 bge-m3;只有显式设 RAG_EMBEDDING_PROVIDER=hash
+    # 才走离线降级实现(供离线测试/CI,**不是**生产默认)。
+    rag_embedding_provider: str = "bge-m3"
+    rag_embedding_model: str = "BAAI/bge-m3"
+    rag_embedding_dim: int = 1024
+    rag_embedding_batch_size: int = 8
+
+    # 向量库(Milvus Lite 本地持久化;部署时可切 Standalone 的 URI)
+    rag_vector_backend: str = "milvus-lite"
+    rag_milvus_uri: str = "./app/data/rag_state/travelmate_milvus.db"
+    rag_collection: str = "travelmate_knowledge_bgem3_v1"
+
+    # 切分与检索参数
+    rag_chunk_size: int = 700
+    rag_chunk_overlap: int = 120
+    rag_dense_top_k: int = 20
+    rag_bm25_top_k: int = 20
+    rag_final_top_k: int = 6
+    rag_max_evidence_chars: int = 6000
+    rag_retrieval_timeout_seconds: float = 12.0
+    rag_max_tool_searches_per_turn: int = 1
+
+    # 联网检索(没有有效 Provider/Key 时明确禁用,绝不谎称联网已发生)
+    web_search_provider: str = "none"
+    tavily_api_key: str = ""
+    web_search_timeout_seconds: float = 8.0
+    web_search_max_results: int = 5
+    web_page_max_bytes: int = 1_048_576
+    web_cache_ttl_seconds: int = 3600
+
+    @model_validator(mode="after")
+    def _validate_rag(self) -> "Settings":
+        """启动即校验:参数矛盾时直接失败,而不是运行到一半才发现。"""
+        if self.rag_chunk_size <= 0:
+            raise ValueError("RAG_CHUNK_SIZE 必须大于 0")
+        if self.rag_chunk_overlap < 0:
+            raise ValueError("RAG_CHUNK_OVERLAP 不能为负")
+        if self.rag_chunk_overlap >= self.rag_chunk_size:
+            raise ValueError("RAG_CHUNK_OVERLAP 必须小于 RAG_CHUNK_SIZE")
+        for name in ("rag_dense_top_k", "rag_bm25_top_k", "rag_final_top_k"):
+            if int(getattr(self, name)) <= 0:
+                raise ValueError(f"{name.upper()} 必须大于 0")
+        if self.rag_embedding_dim <= 0:
+            raise ValueError("RAG_EMBEDDING_DIM 必须大于 0")
+        return self
 
 
 @lru_cache

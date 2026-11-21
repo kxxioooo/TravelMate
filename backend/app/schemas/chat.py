@@ -55,9 +55,33 @@ class AgentActivityResponse(BaseModel):
     text: str
 
 
+class ChatCitationResponse(BaseModel):
+    """一条引用来源(任务书《RAG》§9.5)。
+
+    `id` 与回答正文里的 ``[n]`` 严格对应;`url` 只对联网来源有意义;
+    `snippet` 是截断后的证据片段,便于前端卡片展示。
+    """
+
+    id: int
+    source_type: str
+    source_id: str
+    title: str = ""
+    url: Optional[str] = None
+    snippet: Optional[str] = None
+    published_at: Optional[datetime] = None
+    retrieved_at: Optional[datetime] = None
+    page_number: Optional[int] = None
+    is_current: bool = False
+
+
 class ChatSendResponse(BaseModel):
-    """一次问答的完整结果:落库的两条消息 + 本次真实发生的工具活动。"""
+    """一次问答的完整结果:落库的两条消息 + 本次真实发生的工具活动。
+
+    ``citations`` 是新增字段(有默认值,老客户端不受影响):
+    只有真正检索到证据时才会非空,且编号一定能在本次请求里找到对应来源。
+    """
 
     user_message: ChatMessageResponse
     assistant_message: ChatMessageResponse
     activities: list[AgentActivityResponse] = Field(default_factory=list)
+    citations: list[ChatCitationResponse] = Field(default_factory=list)

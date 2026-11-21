@@ -10,6 +10,12 @@
   >
     <p class="tm-chat-message-bubble">{{ message.content }}</p>
 
+    <!-- 任务书《RAG》§11.4:只对 assistant 且有真实来源时渲染引用 -->
+    <RagCitationList
+      v-if="message.role === 'assistant' && citations.length"
+      :citations="citations"
+    />
+
     <p v-if="message.pending" class="tm-chat-message-state">{{ t('chat.pending') }}</p>
     <button
       v-else-if="message.failed"
@@ -25,8 +31,12 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 
+import RagCitationList from './RagCitationList.vue'
+
 defineProps({
   message: { type: Object, required: true },
+  //: 引用来源由容器(MessageList)取好传进来,本组件保持纯展示
+  citations: { type: Array, default: () => [] },
 })
 
 defineEmits(['retry'])

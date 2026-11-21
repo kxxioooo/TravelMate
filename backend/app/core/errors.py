@@ -31,6 +31,13 @@ CONVERSATION_NOT_FOUND = "conversation.not_found"
 VALIDATION_FAILED = "validation.failed"
 SERVER_UNAVAILABLE = "server.unavailable"
 
+# --- 任务书《长期画像与跨会话记忆》新增码 ---------------------------------------
+MEMORY_NOT_FOUND = "memory.not_found"
+MEMORY_SETTINGS_FAILED = "memory.settings_failed"
+MEMORY_SETTINGS_UNAVAILABLE = "memory.settings_unavailable"
+MEMORY_SAVE_FAILED = "memory.save_failed"
+MEMORY_DELETE_FAILED = "memory.delete_failed"
+
 #: 全部合法错误码(顺序与契约一致)
 ERROR_CODES: tuple[str, ...] = (
     AUTH_INVALID_CREDENTIALS,
@@ -50,6 +57,11 @@ ERROR_CODES: tuple[str, ...] = (
     CONVERSATION_NOT_FOUND,
     VALIDATION_FAILED,
     SERVER_UNAVAILABLE,
+    MEMORY_NOT_FOUND,
+    MEMORY_SETTINGS_FAILED,
+    MEMORY_SETTINGS_UNAVAILABLE,
+    MEMORY_SAVE_FAILED,
+    MEMORY_DELETE_FAILED,
 )
 
 #: 错误码 -> HTTP 状态码
@@ -71,6 +83,11 @@ ERROR_CODE_STATUS: dict[str, int] = {
     CONVERSATION_NOT_FOUND: 404,
     VALIDATION_FAILED: 422,
     SERVER_UNAVAILABLE: 500,
+    MEMORY_NOT_FOUND: 404,
+    MEMORY_SETTINGS_FAILED: 500,
+    MEMORY_SETTINGS_UNAVAILABLE: 500,
+    MEMORY_SAVE_FAILED: 500,
+    MEMORY_DELETE_FAILED: 500,
 }
 
 #: 错误码 -> 默认中文文案(detail 字段,保持 v0.3 的中文风格)
@@ -92,6 +109,11 @@ ERROR_CODE_DETAILS: dict[str, str] = {
     CONVERSATION_NOT_FOUND: "未找到该会话",
     VALIDATION_FAILED: "请求参数不合法",
     SERVER_UNAVAILABLE: "服务器暂时不可用",
+    MEMORY_NOT_FOUND: "未找到该记忆或来源",
+    MEMORY_SETTINGS_FAILED: "保存记忆设置失败",
+    MEMORY_SETTINGS_UNAVAILABLE: "记忆设置暂时不可用",
+    MEMORY_SAVE_FAILED: "保存记忆失败",
+    MEMORY_DELETE_FAILED: "删除记忆失败",
 }
 
 MESSAGE_KEY_PREFIX = "error."

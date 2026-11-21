@@ -9,6 +9,7 @@
       v-for="message in messages"
       :key="message.id"
       :message="message"
+      :citations="citationsFor(message)"
       @retry="$emit('retry', $event.content)"
     />
   </div>
@@ -18,6 +19,7 @@
 import { nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useChatStore } from '../../stores/chat'
 import ChatMessage from './ChatMessage.vue'
 
 const props = defineProps({
@@ -27,8 +29,40 @@ const props = defineProps({
 defineEmits(['retry'])
 
 const { t } = useI18n()
+const chatStore = useChatStore()
 
 const listRef = ref(null)
+
+/** 只有 assistant 的正式回答才展示引用;pening/failed 一律不展示。 */
+function citationsFor(message) {
+  if (!message || message.role !== 'assistant' || message.pending || message.failed) {
+    return []
+  }
+  return chatStore.citationsByMessageId[message.id] ?? []
+}
+
+/**
+ * 历史消息没有内嵌 citations(任务书《RAG》§11.4):
+ * 进入列表时懒加载一次。RAG 未启用则完全跳过,不打无谓请求。
+ */
+watch(
+  () => props.messages,
+  async (items) => {
+    if (!Array.isArray(items) || !items.length) {
+      return
+    }
+    const enabled = await chatStore.ensureRagStatus()
+    if (!enabled) {
+      return
+    }
+    for (const message of items) {
+      if (message.role === 'assistant' && !message.pending && !message.failed) {
+        chatStore.ensureCitations(message.id)
+      }
+    }
+  },
+  { immediate: true },
+)
 
 /** §25.2 消息数量变化后,等 DOM 更新完再滚到底部。 */
 function scrollToBottom() {

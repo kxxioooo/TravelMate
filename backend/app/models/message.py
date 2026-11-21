@@ -25,6 +25,8 @@ class Message(Base):
     __table_args__ = (
         # 取"某会话最近 N 条"走这个索引,永远按 id 倒序取再翻正。
         Index("ix_messages_conversation_id", "conversation_id", "id"),
+        # 任务书 §4.3:跨会话检索按 (role, created_at) 过滤 + 排序,单独建组合索引。
+        Index("ix_messages_retrieval", "conversation_id", "role", "created_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(

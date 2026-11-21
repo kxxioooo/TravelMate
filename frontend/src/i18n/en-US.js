@@ -299,6 +299,8 @@ export default {
       tool_rejected_unknown: 'This city is not in the supported city list',
       tool_rejected_required: 'No city was specified, the user needs to name one',
       tool_failed: 'Query failed',
+      knowledge_found: 'Travel knowledge base searched',
+      knowledge_unavailable: 'No verifiable travel material was found',
     },
   },
 
@@ -355,6 +357,102 @@ export default {
     server: {
       unavailable: 'The server is temporarily unavailable, please try again later',
     },
+  },
+
+  memory: {
+    entry_title: 'Memory & privacy',
+    entry_hint: 'Cross-conversation history and long-term profile. Off by default, revocable anytime.',
+    entry_action: 'Manage',
+    intro:
+      'Memory is optional. When off, we do not search your other conversations and do not learn preferences from chats. Saved memory can be deleted at any time; deleting memory does not delete your original chats.',
+    consent_title: 'Consent',
+    history_toggle: 'Let the assistant reference my other conversations',
+    history_hint:
+      'Only your own past user messages are retrieved, and only when relevant, as supporting evidence. Assistant replies are never treated as facts.',
+    learning_toggle: 'Let the assistant learn long-term preferences from chats',
+    learning_hint:
+      'Only explicit long-term wording is extracted (e.g. "I always like…", "I usually spend…"). Inferred items take effect only after you confirm them.',
+    profile_title: 'Current profile',
+    profile_empty: 'No profile yet. It appears after you save preferences or confirm memory items.',
+    profile_hint:
+      'The profile is a summary derived from explicit preferences and confirmed memory, not a separately editable source of truth.',
+    items_title: 'Memory items',
+    items_empty: 'No memory items yet.',
+    items_hint:
+      'Pending items never enter the profile. Deleting clears the value and its sources and prevents it from being relearned.',
+    add: 'Add memory',
+    add_title: 'Add memory',
+    edit_title: 'Edit memory',
+    key_label: 'Type',
+    value_label: 'Value',
+    value_placeholder: 'e.g. nature scenery, museums',
+    list_hint: 'Separate multiple values with commas, up to 12 items.',
+    budget_hint: 'Amount is in CNY per day; this is different from the budget tier in preferences.',
+    error_empty: 'Please fill in a value',
+    error_budget: 'Budget must be an integer between 10 and 100000',
+    save: 'Save',
+    status_active: 'Active',
+    status_pending: 'Pending',
+    status_suppressed: 'Deleted',
+    confirm: 'Confirm',
+    edit: 'Edit',
+    delete: 'Delete',
+    delete_confirm:
+      'Deleting clears the value and its sources and prevents relearning. Delete anyway?',
+    sources_title: 'History sources',
+    sources_empty: 'No history messages available yet.',
+    sources_hint:
+      'An excluded source no longer participates in cross-conversation search or extraction, but the original chat is kept.',
+    exclude_source: 'Exclude',
+    exclude_confirm: 'This message will no longer be used for search or learning. Exclude it?',
+    source_excluded: 'Excluded',
+    clear_title: 'Clear',
+    clear_learned: 'Clear learned preferences',
+    clear_learned_confirm:
+      'All inferred items are removed and only later messages are learned. Your explicit preferences stay. Continue?',
+    clear_history: 'Stop sharing existing history',
+    clear_history_confirm:
+      'Previously stored messages are no longer used for retrieval. Original chats are kept. Continue?',
+    clear_hint: 'Clearing cannot be undone, but it never deletes your chat messages.',
+    load_failed: 'Failed to load memory settings',
+    save_failed: 'Failed to save memory',
+    delete_failed: 'Failed to delete memory',
+    value_removed: 'Value cleared',
+    keys: {
+      'attraction.interests': 'Attraction interests',
+      'food.likes': 'Favorite food',
+      'food.avoids': 'Food to avoid',
+      'budget.daily_cny': 'Daily budget',
+      'pace.style': 'Travel pace',
+      'transport.preference': 'Transport preference',
+      'trip.habit': 'Trip habit',
+    },
+    pace: {
+      relaxed: 'Relaxed',
+      balanced: 'Balanced',
+      packed: 'Packed',
+    },
+  },
+
+  // RAG task book §11.4: citation display.
+  // Only UI labels are localized; source titles, ids and page numbers are never rewritten.
+  rag: {
+    sources: 'Sources',
+    local_document: 'Local knowledge base',
+    web_page: 'Web page',
+    realtime_fact: 'Live data',
+    untitled_source: 'Untitled source',
+    open_link: 'Open original',
+    page: 'p.',
+    page_suffix: '',
+    published_at: 'Published',
+    retrieved_at: 'Retrieved',
+    no_sources: 'This answer has no sources to show',
+    search_unavailable: 'The knowledge base is unavailable, no verifiable material was found',
+    source_not_available: 'This source is no longer available or public',
+    freshness_note:
+      'Sources are not guaranteed to be current: opening hours and prices may have changed. Please check the official announcement.',
+    disabled: 'Knowledge base search is disabled',
   },
 
   common: {

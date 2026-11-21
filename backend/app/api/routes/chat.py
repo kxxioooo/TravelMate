@@ -81,4 +81,6 @@ async def send_message_endpoint(
         user_message=ChatMessageResponse.model_validate(result["user_message"]),
         assistant_message=ChatMessageResponse.model_validate(result["assistant_message"]),
         activities=result["activities"],
+        # 只有真正检索到证据时才非空;没有证据就是空数组,绝不虚构引用
+        citations=result.get("citations") or [],
     )

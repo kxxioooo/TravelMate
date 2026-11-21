@@ -119,17 +119,27 @@ def test_get_user_preferences_tool(db_session):
         "travel_pace": "悠闲",
     }
 
-    # 四个工具就是四个,而且参数 JSON Schema 里绝不出现 user_id
+    # 工具数量与注册表一致,而且参数 JSON Schema 里绝不出现 user_id
     definitions = agent_tools.build_tool_definitions()
     assert [item["function"]["name"] for item in definitions] == list(agent_tools.AGENT_TOOL_NAMES)
     parameters = [item["function"]["parameters"] for item in definitions]
     assert "user_id" not in json.dumps(parameters, ensure_ascii=False)
+    # 任务书《RAG》§10.2:在原有四个工具后追加 search_travel_knowledge
     assert [sorted(item["properties"]) for item in parameters] == [
         [],
         ["city_name"],
         ["city_name", "keyword"],
         ["city_name", "keyword"],
+        ["city_name", "need_latest", "query"],
     ]
+    # 原有四个工具一个都不能少
+    for legacy in (
+        agent_tools.TOOL_GET_USER_PREFERENCES,
+        agent_tools.TOOL_GET_WEATHER,
+        agent_tools.TOOL_SEARCH_ATTRACTIONS,
+        agent_tools.TOOL_SEARCH_FOOD,
+    ):
+        assert legacy in agent_tools.AGENT_TOOL_NAMES
 
 
 def test_get_weather_tool_for_selected_city(monkeypatch, db_session):

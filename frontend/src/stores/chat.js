@@ -2,7 +2,14 @@ import { defineStore } from 'pinia'
 
 import { getMessages, sendMessage } from '../api/chat'
 import { toErrorInfo } from '../api/http'
+import { getMessageCitations, getRagStatus } from '../api/rag'
 import { buildLocalUserMessage, normalizeActivities } from '../utils/chat'
+
+/**
+ * 正在请求引用的 message id(模块级,非响应式):
+ * 只用来防止同一个 message 并发发多次请求。挂载即触发一次,不会无限重试。
+ */
+const pendingCitationIds = new Set()
 
 /**
  * 后端一条 message -> 前端稳定结构。
@@ -55,6 +62,16 @@ export const useChatStore = defineStore('chat', {
     activeConversationId: null,
     /** 请求序号:每次加载/发送自增,只有最新一次请求的结果会被采纳。 */
     requestSeq: 0,
+    /**
+     * 每条 assistant 消息的引用来源(任务书《RAG》§11.4)。
+     *
+     * 发送时直接用响应里的 `citations` 填;历史消息没有内嵌引用,
+     * 由 MessageList 懒加载一次。切会话时整体清空,防止"上一会话残影"。
+     */
+    citationsByMessageId: {},
+    /** RAG 是否启用(只查一次;未启用时完全不去请求引用)。 */
+    ragEnabled: false,
+    ragStatusLoaded: false,
   }),
 
   actions: {
@@ -79,6 +96,8 @@ export const useChatStore = defineStore('chat', {
       this.activeConversationId = conversationId
       this.messages = []
       this.activities = []
+      // 任务书《RAG》§11.4:切会话必须同时清空引用,防止上一会话的来源残影
+      this.citationsByMessageId = {}
       this.error = null
       this.isSending = false
 
@@ -181,6 +200,13 @@ export const useChatStore = defineStore('chat', {
         if (assistantMessage) {
           this.messages = [...this.messages, assistantMessage]
           streamToken = this.messages
+
+          // 7.5 保存引用的**真实来源**;没有就存空数组,绝不拼凑
+          const citations = Array.isArray(data?.citations) ? data.citations : []
+          this.citationsByMessageId = {
+            ...this.citationsByMessageId,
+            [assistantMessage.id]: citations,
+          }
         }
 
         // 8. activities = 后端真实 activities;空数组就什么都不显示
@@ -226,8 +252,64 @@ export const useChatStore = defineStore('chat', {
       this.activeConversationId = null
       this.messages = []
       this.activities = []
+      // 引用也要清:否则新会话会短暂显示上一个会话的来源
+      this.citationsByMessageId = {}
       this.error = null
       this.isSending = false
+    },
+
+    /**
+     * 查一次 RAG 是否启用(任务书《RAG》§11.4)。
+     *
+     * 未启用时返回 false,调用方就完全不去请求引用 —— 避免每个会话
+     * 对每条历史消息都打一次必然 404/空结果 的请求。
+     */
+    async ensureRagStatus() {
+      if (this.ragStatusLoaded) {
+        return this.ragEnabled
+      }
+      this.ragStatusLoaded = true
+      try {
+        const status = await getRagStatus()
+        this.ragEnabled = Boolean(status?.enabled)
+      } catch {
+        this.ragEnabled = false
+      }
+      return this.ragEnabled
+    },
+
+    /**
+     * 取某条消息的引用(带缓存)。历史消息没有内嵌 citations 时才需要。
+     *
+     * 切换会话后不再落地,防止迟到响应把 A 的引用写到 B。
+     */
+    async ensureCitations(messageId) {
+      if (messageId === null || messageId === undefined) {
+        return []
+      }
+      if (Object.prototype.hasOwnProperty.call(this.citationsByMessageId, messageId)) {
+        return this.citationsByMessageId[messageId]
+      }
+      if (!this.ragEnabled || pendingCitationIds.has(messageId)) {
+        return []
+      }
+
+      const conversationId = this.activeConversationId
+      pendingCitationIds.add(messageId)
+      try {
+        const citations = await getMessageCitations(messageId)
+        if (this.activeConversationId === conversationId) {
+          this.citationsByMessageId = {
+            ...this.citationsByMessageId,
+            [messageId]: Array.isArray(citations) ? citations : [],
+          }
+        }
+        return citations
+      } catch {
+        return []
+      } finally {
+        pendingCitationIds.delete(messageId)
+      }
     },
 
     /** §24.6 退出登录时完全清空(包括 draft,防止串到下一个账号)。 */

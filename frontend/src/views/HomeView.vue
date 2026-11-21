@@ -65,6 +65,7 @@ import { useChatStore } from '../stores/chat'
 import { useCityStore } from '../stores/city'
 import { useConversationStore } from '../stores/conversations'
 import { useFoodStore } from '../stores/food'
+import { useMemoryStore } from '../stores/memory'
 import { displayCityName } from '../utils/i18nDisplay'
 
 const { t, locale } = useI18n()
@@ -76,6 +77,7 @@ const attractionStore = useAttractionStore()
 const foodStore = useFoodStore()
 const conversationStore = useConversationStore()
 const chatStore = useChatStore()
+const memoryStore = useMemoryStore()
 
 const activePanel = ref(null)
 /** 两种布局下只有一侧处于挂载状态,ref 始终指向当前真实存在的 ChatPanel。 */
@@ -166,6 +168,7 @@ watch(
     foodStore.resetFoodState()
     conversationStore.resetConversations()
     chatStore.resetChat()
+    memoryStore.resetMemory()
   },
   { flush: 'sync' },
 )

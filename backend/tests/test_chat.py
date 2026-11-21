@@ -125,7 +125,10 @@ def test_send_message_persists_user_and_assistant(monkeypatch, client_fixture, u
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"user_message", "assistant_message", "activities"}
+    # 任务书《RAG》§10.1:在原有三个字段上新增 citations(默认空数组)
+    assert set(body) == {"user_message", "assistant_message", "activities", "citations"}
+    # RAG 未启用时不得凭空出现引用
+    assert body["citations"] == []
     assert body["user_message"]["role"] == "user"
     assert body["user_message"]["content"] == "明天成都天气怎么样?我想看自然风景"
     assert body["assistant_message"]["role"] == "assistant"

@@ -42,13 +42,16 @@ TOOL_GET_USER_PREFERENCES = "get_user_preferences"
 TOOL_GET_WEATHER = "get_weather"
 TOOL_SEARCH_ATTRACTIONS = "search_attractions"
 TOOL_SEARCH_FOOD = "search_food"
+#: 任务书《RAG》§10.2:检索本地知识库 / 授权网页
+TOOL_SEARCH_TRAVEL_KNOWLEDGE = "search_travel_knowledge"
 
-#: 只注册这四个工具(§29)
+#: 注册给模型的工具(原四个 + RAG 检索)
 AGENT_TOOL_NAMES = (
     TOOL_GET_USER_PREFERENCES,
     TOOL_GET_WEATHER,
     TOOL_SEARCH_ATTRACTIONS,
     TOOL_SEARCH_FOOD,
+    TOOL_SEARCH_TRAVEL_KNOWLEDGE,
 )
 
 #: 给 Agent 不需要一次返回几十条 POI(§29.3 / §29.4)
@@ -60,6 +63,12 @@ ERROR_CITY_REQUIRED = "CITY_REQUIRED"
 ERROR_CITY_AMBIGUOUS = "CITY_AMBIGUOUS"
 ERROR_CITY_UNKNOWN = "CITY_UNKNOWN"
 
+#: RAG 检索工具的稳定错误码(任务书《RAG》§10.2)
+ERROR_KNOWLEDGE_QUERY_INVALID = "KNOWLEDGE_QUERY_INVALID"
+ERROR_KNOWLEDGE_DISABLED = "KNOWLEDGE_DISABLED"
+ERROR_KNOWLEDGE_UNAVAILABLE = "KNOWLEDGE_UNAVAILABLE"
+ERROR_KNOWLEDGE_LIMIT = "KNOWLEDGE_SEARCH_LIMIT"
+
 UNKNOWN_TOOL_MESSAGE = "未知工具:{name}"
 TOOL_FAILED_MESSAGE = "工具 {name} 执行失败"
 INVALID_ARGUMENTS_MESSAGE = "工具参数不是合法的 JSON 对象"
@@ -68,6 +77,13 @@ WEATHER_FAILED_MESSAGE = "天气查询失败"
 ATTRACTION_FAILED_MESSAGE = "景点查询失败"
 FOOD_FAILED_MESSAGE = "美食查询失败"
 KEYWORD_UNRECOGNIZED_MESSAGE = "无法可靠识别该搜索词,请换一个中文或英文关键词"
+
+#: 知识检索的受控说明
+KNOWLEDGE_QUERY_INVALID_MESSAGE = "检索词长度不合法(需要 2~500 字)"
+KNOWLEDGE_DISABLED_MESSAGE = "知识库检索未启用"
+KNOWLEDGE_UNAVAILABLE_MESSAGE = "知识库暂时不可用,未能检索到可验证资料"
+KNOWLEDGE_LIMIT_MESSAGE = "本轮已经检索过知识库,请基于已有材料回答"
+KNOWLEDGE_EMPTY_MESSAGE = "知识库里没有找到与这个问题相关的资料"
 
 #: 城市没解析出来时的说明(不再有"未选择该城市"的拒绝语义)
 CITY_REQUIRED_MESSAGE = "还无法确定要查哪个城市,请告诉用户补充城市名"
@@ -80,7 +96,12 @@ _TOOL_PARAMETERS: dict[str, tuple[str, ...]] = {
     TOOL_GET_WEATHER: ("city_name",),
     TOOL_SEARCH_ATTRACTIONS: ("city_name", "keyword"),
     TOOL_SEARCH_FOOD: ("city_name", "keyword"),
+    TOOL_SEARCH_TRAVEL_KNOWLEDGE: ("query", "city_name", "need_latest"),
 }
+
+#: 知识检索的参数约束(任务书 §10.2)
+KNOWLEDGE_QUERY_MIN_CHARS = 2
+KNOWLEDGE_QUERY_MAX_CHARS = 500
 
 
 def _ok(data: Mapping[str, Any]) -> dict[str, Any]:
@@ -304,6 +325,38 @@ def build_tool_definitions() -> list[dict[str, Any]]:
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": TOOL_SEARCH_TRAVEL_KNOWLEDGE,
+                "description": (
+                    "检索本地已审核的旅行知识(历史文化、攻略、地方习俗、FAQ)及授权网页资料。"
+                    "适用于解释背景与玩法,**不**用于获取实时价格、天气、评分、电话 —— "
+                    "那些必须用对应工具。城市只是软上下文,不限制查询其它城市。"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "要检索的问题或关键词,2~500 字",
+                            "minLength": KNOWLEDGE_QUERY_MIN_CHARS,
+                            "maxLength": KNOWLEDGE_QUERY_MAX_CHARS,
+                        },
+                        "city_name": {
+                            "type": "string",
+                            "description": "可选的明确城市名(中文或英文),省略则按问题内容判断",
+                        },
+                        "need_latest": {
+                            "type": "boolean",
+                            "description": "是否优先查询最新公开资料(政策/公告类问题用)",
+                        },
+                    },
+                    "required": ["query"],
+                    "additionalProperties": False,
+                },
+            },
+        },
     ]
 
 
@@ -458,6 +511,129 @@ async def search_food_tool(
     return _ok(payload)
 
 
+async def search_travel_knowledge_tool(
+    context: Mapping[str, Any],
+    query: Optional[str] = None,
+    city_name: Optional[str] = None,
+    need_latest: Any = False,
+) -> dict[str, Any]:
+    """检索本地知识库(任务书《RAG》§10.2)。
+
+    - query 长度 2~500,超限给受控错误;
+    - 每轮最多 ``RAG_MAX_TOOL_SEARCHES_PER_TURN`` 次,同参数直接复用结果;
+    - RAG 关闭 / 依赖缺失 / 检索异常都返回受控错误,**绝不编造引用**;
+    - 检索成功但没有命中时返回 `ok=True + evidence=[] + status=empty`
+      (让上层显示"没找到可验证资料",而不是假装查到)。
+    """
+    from app.core.config import get_settings
+
+    text = _clean_str(query)
+    if not text or not (KNOWLEDGE_QUERY_MIN_CHARS <= len(text) <= KNOWLEDGE_QUERY_MAX_CHARS):
+        return _fail(
+            KNOWLEDGE_QUERY_INVALID_MESSAGE, error_code=ERROR_KNOWLEDGE_QUERY_INVALID
+        )
+
+    db = context.get("db")
+    user_id = context.get("user_id")
+    if db is None or user_id is None:
+        return _fail(
+            KNOWLEDGE_UNAVAILABLE_MESSAGE, error_code=ERROR_KNOWLEDGE_UNAVAILABLE
+        )
+
+    settings = get_settings()
+    if not bool(getattr(settings, "rag_enabled", False)):
+        return _fail(KNOWLEDGE_DISABLED_MESSAGE, error_code=ERROR_KNOWLEDGE_DISABLED)
+
+    # --- 每轮次数上限 + 同参数复用(避免重复 embedding / 联网费用)---
+    state = context.get("_rag_state")
+    if not isinstance(state, dict):
+        state = {"count": 0, "cache": {}}
+        try:
+            context["_rag_state"] = state  # type: ignore[index]
+        except Exception:  # noqa: BLE001 - 只读 Mapping 时退化为不缓存
+            pass
+
+    cache: dict[Any, dict[str, Any]] = state.setdefault("cache", {})
+    cache_key = (text, _clean_str(city_name) or "", bool(need_latest))
+    if cache_key in cache:
+        return cache[cache_key]
+
+    limit = int(getattr(settings, "rag_max_tool_searches_per_turn", 1) or 1)
+    if int(state.get("count", 0)) >= max(1, limit):
+        return _fail(KNOWLEDGE_LIMIT_MESSAGE, error_code=ERROR_KNOWLEDGE_LIMIT)
+    state["count"] = int(state.get("count", 0)) + 1
+
+    # --- 懒加载 embedding / 向量库;没装 RAG 依赖时按"不可用"降级 ---
+    embedding = None
+    vectors = None
+    index_version: Optional[str] = None
+    try:
+        from app.services.rag.embedding_provider import get_embedding_provider
+        from app.services.rag.vector_store import get_vector_store
+
+        embedding = get_embedding_provider(settings)
+        vectors = get_vector_store(settings)
+        index_version = str(getattr(embedding, "version", "") or "") or None
+        vectors.ensure_collection(int(getattr(embedding, "dim", 1024) or 1024))
+    except Exception:  # noqa: BLE001 - 依赖缺失/模型不可用时退回纯 BM25
+        embedding = None
+        vectors = None
+
+    try:
+        from app.services.rag import retrieval_service
+
+        outcome = await retrieval_service.retrieve_all(
+            text,
+            db,
+            user_id=int(user_id),
+            conversation_cities=_selected_cities(context),
+            conversation_id=context.get("conversation_id"),
+            locale=_context_locale(context),
+            settings=settings,
+            embedding=embedding,
+            vectors=vectors,
+            index_version=index_version,
+            allow_web=bool(need_latest),
+            max_chars=int(getattr(settings, "rag_max_evidence_chars", 6000) or 6000),
+        )
+    except Exception:  # noqa: BLE001 - 检索异常不能中断整轮工具循环
+        return _fail(
+            KNOWLEDGE_UNAVAILABLE_MESSAGE, error_code=ERROR_KNOWLEDGE_UNAVAILABLE
+        )
+
+    bundle = outcome.bundle
+    evidence = [item.to_payload() for item in bundle.items]
+
+    payload = {
+        "evidence": evidence,
+        "status": bundle.status,
+        "searched": bundle.searched,
+        "warnings": list(bundle.warnings),
+        "has_realtime_facts": bundle.has_realtime_facts,
+    }
+
+    if outcome.analysis is not None:
+        payload["analysis"] = {
+            "intent": getattr(outcome.analysis, "intent", ""),
+            "explicit_adcodes": list(getattr(outcome.analysis, "explicit_adcodes", ()) or ()),
+        }
+
+    if outcome.tool_hints:
+        # 只是"建议调用哪个工具",不代执行
+        payload["suggested_tools"] = [dict(hint) for hint in outcome.tool_hints]
+
+    if bundle.status == STATUS_DISABLED:
+        return _fail(KNOWLEDGE_DISABLED_MESSAGE, error_code=ERROR_KNOWLEDGE_DISABLED)
+
+    result = _ok(payload)
+    cache[cache_key] = result
+    return result
+
+
+#: 与 retrieval_service 的状态常量保持一致(避免循环导入)
+STATUS_DISABLED = "disabled"
+
+
 async def execute_tool(
     name: Any, arguments: Optional[Mapping[str, Any]], context: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -490,6 +666,8 @@ async def execute_tool(
             return await search_attractions_tool(context, **kwargs)
         if tool_name == TOOL_SEARCH_FOOD:
             return await search_food_tool(context, **kwargs)
+        if tool_name == TOOL_SEARCH_TRAVEL_KNOWLEDGE:
+            return await search_travel_knowledge_tool(context, **kwargs)
     except Exception:  # noqa: BLE001 - 单个工具失败绝不能中断整轮工具循环
         return _fail(TOOL_FAILED_MESSAGE.format(name=tool_name))
 
