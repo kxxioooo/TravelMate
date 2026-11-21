@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     rag_vector_backend: str = "milvus-lite"
     rag_milvus_uri: str = "./app/data/rag_state/travelmate_milvus.db"
     rag_collection: str = "travelmate_knowledge_bgem3_v1"
+    #: 向量索引类型。Milvus Lite + 小数据量用 FLAT 最稳(不写 faiss 索引文件);
+    #: 大数据量/Standalone 可改 AUTOINDEX。
+    rag_index_type: str = "FLAT"
 
     # 切分与检索参数
     rag_chunk_size: int = 700
@@ -116,6 +119,40 @@ class Settings(BaseSettings):
     web_search_max_results: int = 5
     web_page_max_bytes: int = 1_048_576
     web_cache_ttl_seconds: int = 3600
+
+    # ---------- 任务书《AI Agent 文档生成》§12 ----------
+    #: 总开关。false 时不注册文档工具,聊天与 RAG 照常。
+    doc_export_enabled: bool = True
+    #: 私有存储根目录(相对 backend/ 或绝对路径);**不得**放在前端静态目录下
+    doc_storage_root: str = "./app/data/generated_documents"
+    #: 单个行程最多几天 / 最多几个城市
+    doc_max_days: int = 30
+    doc_max_cities: int = 20
+    #: 生成文件大小上限(字节)
+    doc_max_file_bytes: int = 10 * 1024 * 1024
+    #: 下载有效期(小时)
+    doc_ttl_hours: int = 168
+    #: 同一轮最多生成几份文档 / 单用户每天上限
+    doc_max_per_turn: int = 2
+    doc_max_per_user_per_day: int = 20
+    #: 单次生成的整体超时(秒):超时按失败处理,不允许挂死请求
+    doc_generation_timeout_seconds: float = 150.0
+    #: 行程 JSON 草稿生成超时(秒)
+    doc_draft_timeout_seconds: float = 90.0
+    #: PPT 最大幻灯片数(超出则拒绝或压缩)
+    doc_max_slides: int = 40
+
+    @model_validator(mode="after")
+    def _validate_documents(self) -> "Settings":
+        if self.doc_max_days <= 0 or self.doc_max_days > 60:
+            raise ValueError("DOC_MAX_DAYS 必须在 1~60 之间")
+        if self.doc_max_file_bytes <= 0:
+            raise ValueError("DOC_MAX_FILE_BYTES 必须大于 0")
+        if self.doc_ttl_hours <= 0:
+            raise ValueError("DOC_TTL_HOURS 必须大于 0")
+        if self.doc_max_per_turn <= 0:
+            raise ValueError("DOC_MAX_PER_TURN 必须大于 0")
+        return self
 
     @model_validator(mode="after")
     def _validate_rag(self) -> "Settings":

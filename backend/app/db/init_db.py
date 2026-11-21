@@ -15,6 +15,8 @@ from app.models import (  # noqa: F401  导入即注册到 Base.metadata
     city_history,
     conversation,
     conversation_city,
+    document_generation_job,
+    generated_document,
     entity_translation,
     knowledge_chunk,
     knowledge_document,
