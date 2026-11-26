@@ -122,7 +122,7 @@ class Settings(BaseSettings):
 
     # ---------- 任务书《AI Agent 文档生成》§12 ----------
     #: 总开关。false 时不注册文档工具,聊天与 RAG 照常。
-    doc_export_enabled: bool = True
+    document_export_enabled: bool = True
     #: 私有存储根目录(相对 backend/ 或绝对路径);**不得**放在前端静态目录下
     doc_storage_root: str = "./app/data/generated_documents"
     #: 单个行程最多几天 / 最多几个城市
